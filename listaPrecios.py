@@ -3,6 +3,8 @@ from pathlib import Path
 from collections import Counter
 import argparse
 import unicodedata
+import json
+from validacion_numerica import validar_numeros
 
 ENCABEZADOS = (
     'Almacen', 'Linea', 'Nombre de Linea', 'SubLinea',
@@ -146,11 +148,31 @@ def main():
     parser.add_argument('archivo', nargs='?', type=Path,
                         default=Path(__file__).with_name('Lista-Precios.txt'))
     parser.add_argument('--encoding', help='Codificacion confirmada, por ejemplo cp1252.')
-    parser.add_argument('--corregir', action='store_true', help='Aplicar solo las correcciones aprobadas.')
+    modos = parser.add_mutually_exclusive_group()
+    modos.add_argument('--validar-numeros', action='store_true', help='Validar sin modificar los valores.')
+    parser.add_argument('--reporte', type=Path, help='Nuevo archivo JSON para la validacion.')
+    modos.add_argument('--corregir', action='store_true', help='Aplicar solo las correcciones aprobadas.')
     parser.add_argument('--salida', type=Path, help='Destino del TXT corregido.')
     args = parser.parse_args()
+    if args.reporte and not args.validar_numeros:
+        parser.error('--reporte requiere --validar-numeros')
+    if args.salida and not args.corregir:
+        parser.error('--salida requiere --corregir')
     try:
-        if args.corregir:
+        if args.validar_numeros:
+            reporte = validar_numeros(args.archivo, ENCABEZADOS, COLUMNAS_NUMERICAS)
+            if args.reporte:
+                if args.reporte.resolve() == args.archivo.resolve():
+                    raise ValueError('El reporte no puede reemplazar la entrada.')
+                with args.reporte.open('x', encoding='utf-8') as salida:
+                    json.dump(reporte, salida, ensure_ascii=True, indent=2)
+            print(json.dumps(reporte['resumen'], ensure_ascii=True, indent=2))
+            print('Filas validadas:', reporte['filas'])
+            print('Incidencias:', len(reporte['incidencias']))
+            print('Archivo original sin modificar.')
+            if any(c['vacios'] or c['invalidos'] for c in reporte['resumen'].values()):
+                parser.exit(2, 'Hay valores vacios o invalidos; revisar el reporte.\n')
+        elif args.corregir:
             destino = args.salida or args.archivo.with_name('Lista-Precios_estructura.txt')
             corregir_estructura(args.archivo, destino)
         else:

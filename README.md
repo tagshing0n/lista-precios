@@ -2,7 +2,7 @@
 
 Herramienta Python para inspeccionar y corregir de forma controlada listas de precios delimitadas por `|`.
 
-Proyecto en desarrollo: primero se asegura la estructura y la conservacion de datos; la conversion numerica y la exportacion final estan pendientes.
+Proyecto en desarrollo: primero se asegura la estructura y la conservacion de datos; ya incluye validacion numerica sin modificar valores. La conversion y exportacion final estan pendientes.
 
 ## Requisitos
 
@@ -40,7 +40,7 @@ Las firmas de correccion no contienen las filas empresariales. El ejemplo es com
 La inspeccion intenta UTF-8 y, si falla, usa una vista provisional Latin-1. Esto no identifica con certeza la codificacion original.
 La correccion opera sobre bytes con encabezados ASCII; no admite actualmente un encabezado con BOM o UTF-16, aunque la inspeccion puede leerlos.
 La salida TXT y su auditoria se escriben por separado: un fallo de disco puede dejar solo la primera.
-Todavia no se validan valores numericos ni se eliminan, renombran o reordenan columnas.
+No se eliminan, renombran o reordenan columnas. La validacion numerica comprueba formatos, no catalogos oficiales ni reglas comerciales.
 
 ## Datos privados
 
@@ -62,3 +62,18 @@ Revisar siempre `git diff --cached` antes de un commit: las reglas no protegen d
 Para ver el historial: `git log --oneline`.
 Para deshacer un commit ya compartido, usar `git revert HASH`: crea otro commit que revierte sus cambios.
 Un commit protege solo los archivos versionados. Los datos excluidos necesitan su propio respaldo.
+
+## Validacion numerica
+
+    python listaPrecios.py examples/Lista-Precios_demo.txt --validar-numeros --reporte validacion.json
+
+La entrada debe tener 16 campos por fila y encabezados ASCII, sin BOM.
+Los identificadores Almacen, Linea, SubLinea y Codigo SAT admiten digitos ASCII.
+Existencia y Precio de Lista admiten signo, punto decimal y comas de miles bien agrupadas: 1,234.50.
+Se ignoran solo espacios ASCII externos para evaluar, sin modificar el archivo.
+Codigo SAT se conserva como texto: 00123456 no se convierte en 123456.
+La longitud SAT distinta de 8, negativos y exceso de decimales respecto al formato observado (3 para existencia, 2 para precio) se reportan como avisos, sin aplicar reglas comerciales.
+Vacios, NaN, infinito, letras, separadores ambiguos y agrupaciones incorrectas se reportan sin reemplazarlos por cero.
+Los calculos de diagnostico usan Decimal; no se exportan valores convertidos.
+El reporte conserva todas las incidencias con numero de linea y valor original, y debe mantenerse privado.
+Salida del comando: 0 para formatos validos (puede haber avisos), 2 si hay vacios o formatos invalidos, 1 ante un error de archivo o estructura.
