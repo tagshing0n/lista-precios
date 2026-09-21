@@ -81,3 +81,14 @@ Salida del comando: 0 para formatos validos (puede haber avisos), 2 si hay vacio
 ### Precios en cero
 
 Un Precio de Lista igual a cero genera el aviso precio_cero_requiere_revision. El reporte incluye linea, codigo de articulo y valor original. Se conserva como formato valido y no se modifica ni elimina el articulo. Existencia en cero no genera este aviso. El comando mantiene salida 0 cuando solo hay avisos; revisar siempre el reporte.
+
+## Revision de texto
+
+    python listaPrecios.py examples/Lista-Precios_demo.txt --revisar-texto --reporte texto.json
+
+Cuenta vacios, espacios externos e internos multiples, codigos formados solo por digitos, ceros iniciales, puntos aislados, controles ASCII y bytes no ASCII. No modifica ningun valor ni considera automaticamente erroneos los textos numericos, vacios o simbolos.
+El reporte incluye hasta cinco numeros de linea por categoria y el detalle completo de todos los campos con controles o bytes no ASCII.
+Las vistas Latin-1, Windows-1252 y CP850 son comparaciones para revision humana: no identifican por si mismas la codificacion ni autorizan reemplazos. Los bytes originales se guardan en hexadecimal, incluso si una vista no puede decodificar un caracter.
+No se eliminan tabuladores, espacios especiales, acentos ni puntos. Las reglas de limpieza se definiran tras revisar los casos.
+La revision devuelve 0 si termina (aunque haya observaciones), y 1 por errores de archivo o estructura.
+Los reportes contienen informacion del archivo de entrada y permanecen privados.
