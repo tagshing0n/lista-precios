@@ -40,7 +40,7 @@ Las firmas de correccion no contienen las filas empresariales. El ejemplo es com
 La inspeccion intenta UTF-8 y, si falla, usa una vista provisional Latin-1. Esto no identifica con certeza la codificacion original.
 La correccion opera sobre bytes con encabezados ASCII; no admite actualmente un encabezado con BOM o UTF-16, aunque la inspeccion puede leerlos.
 La salida TXT y su auditoria se escriben por separado: un fallo de disco puede dejar solo la primera.
-No se eliminan, renombran o reordenan columnas. La validacion numerica comprueba formatos, no catalogos oficiales ni reglas comerciales.
+No se eliminan, renombran o reordenan columnas. La validacion numerica comprueba formatos y marca precios cero; no consulta catalogos oficiales ni aplica otras reglas comerciales.
 
 ## Datos privados
 
@@ -77,3 +77,7 @@ Vacios, NaN, infinito, letras, separadores ambiguos y agrupaciones incorrectas s
 Los calculos de diagnostico usan Decimal; no se exportan valores convertidos.
 El reporte conserva todas las incidencias con numero de linea y valor original, y debe mantenerse privado.
 Salida del comando: 0 para formatos validos (puede haber avisos), 2 si hay vacios o formatos invalidos, 1 ante un error de archivo o estructura.
+
+### Precios en cero
+
+Un Precio de Lista igual a cero genera el aviso precio_cero_requiere_revision. El reporte incluye linea, codigo de articulo y valor original. Se conserva como formato valido y no se modifica ni elimina el articulo. Existencia en cero no genera este aviso. El comando mantiene salida 0 cuando solo hay avisos; revisar siempre el reporte.

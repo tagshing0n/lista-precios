@@ -19,6 +19,8 @@ def clasificar(columna, original):
         return 'invalido', None, []
     numero = Decimal(valor.replace(b',', b'').decode('ascii'))
     avisos = []
+    if columna == 'Precio de Lista' and numero == 0:
+        avisos.append('precio_cero_requiere_revision')
     if numero < 0:
         avisos.append('negativo_requiere_revision')
     if columna == 'Codigo SAT' and len(valor) != 8:
@@ -67,12 +69,13 @@ def validar_numeros(ruta, encabezados, columnas):
                 if estado != 'valido' or avisos:
                     incidencias.append({
                         'linea': linea, 'columna': columna, 'estado': estado,
+                        'codigo_articulo': campos[encabezados.index('Codigo de Articulo')].strip(b' ').decode('latin1'),
                         'valor_original': campo.decode('latin1'),
                         'bytes_originales_hex': campo.hex(), 'avisos': avisos,
                     })
     return {
         'sha256_entrada': huella.hexdigest(), 'filas': filas,
-        'alcance': 'Formato numerico, no existencia en catalogos ni reglas comerciales.',
+        'alcance': 'Formato numerico y aviso de precio cero; no verifica catalogos ni otras reglas comerciales.',
         'convencion': 'Punto decimal; coma de miles agrupada en bloques de tres.',
         'resumen': resumen, 'incidencias': incidencias,
     }

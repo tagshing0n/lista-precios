@@ -27,6 +27,15 @@ class FormatosTests(unittest.TestCase):
             self.assertEqual(clasificar('Linea', valor)[0], 'invalido')
         self.assertEqual(clasificar('Codigo SAT', b'00123456'), ('valido', Decimal('123456'), []))
 
+    def test_precio_cero_se_marca_sin_cambiarlo(self):
+        for original in (b'0', b' 0.00 ', b'-0.00', b'0,000.00'):
+            estado, numero, avisos = clasificar('Precio de Lista', original)
+            self.assertEqual(estado, 'valido')
+            self.assertEqual(numero, Decimal('0'))
+            self.assertIn('precio_cero_requiere_revision', avisos)
+        self.assertEqual(clasificar('Existencia', b'0.000')[2], [])
+        self.assertEqual(clasificar('Precio de Lista', b'0.01')[2], [])
+
     def test_avisos_no_alteran_valor(self):
         estado, numero, avisos = clasificar('Precio de Lista', b'-1.234')
         self.assertEqual(estado, 'valido')
@@ -60,6 +69,20 @@ class ArchivoTests(unittest.TestCase):
         self.assertEqual(reporte['incidencias'][0]['linea'], 2)
         self.assertEqual(reporte['incidencias'][0]['valor_original'], ' 1,23 ')
         self.assertEqual(reporte['resumen']['Precio de Lista']['vacios'], 1)
+
+    def test_precio_cero_se_identifica_en_reporte(self):
+        self.campos[7] = b' 0.00 '
+        original = self.cabecera + b'|'.join(self.campos)
+        self.entrada.write_bytes(original)
+        reporte = self.validar()
+        self.assertEqual(reporte['resumen']['Precio de Lista']['avisos'], 1)
+        self.assertEqual(reporte['resumen']['Precio de Lista']['validos'], 1)
+        incidencia = reporte['incidencias'][0]
+        self.assertEqual(incidencia['codigo_articulo'], '000123')
+        self.assertEqual(incidencia['linea'], 2)
+        self.assertEqual(incidencia['valor_original'], ' 0.00 ')
+        self.assertEqual(incidencia['avisos'], ['precio_cero_requiere_revision'])
+        self.assertEqual(self.entrada.read_bytes(), original)
 
     def test_rechaza_estructura(self):
         self.entrada.write_bytes(self.cabecera + b'|'.join(self.campos + [b'']))
