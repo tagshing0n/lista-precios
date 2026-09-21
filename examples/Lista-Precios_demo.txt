@@ -1,0 +1,3 @@
+Almacen|Linea|Nombre de Linea|SubLinea|Nombre de SubLinea|Existencia|Codigo de Articulo|Precio de Lista|Marca|Descripcion 1|Descripcion 2|Descripcion 3|Descripcion Extendida|Unidad de Medida|Codigo SAT|Codigo Fabricante
+1|2|LINEA DEMO|201|SUBLINEA DEMO|3.000|000123|10.50|MARCA DEMO|ARTICULO FICTICIO|||.|PZ|00123456|00ABC
+1|2|LINEA DEMO|201|SUBLINEA DEMO|0.000|DEMO-A2|0.00|MARCA DEMO|SEGUNDO ARTICULO FICTICIO|TEXTO ADICIONAL|||PZ|00123456|000456
