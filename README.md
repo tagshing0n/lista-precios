@@ -92,3 +92,18 @@ Las vistas Latin-1, Windows-1252 y CP850 son comparaciones para revision humana:
 No se eliminan tabuladores, espacios especiales, acentos ni puntos. Las reglas de limpieza se definiran tras revisar los casos.
 La revision devuelve 0 si termina (aunque haya observaciones), y 1 por errores de archivo o estructura.
 Los reportes contienen informacion del archivo de entrada y permanecen privados.
+
+## Limpieza aprobada de controles
+
+    python listaPrecios.py archivo_estructura.txt --limpiar-controles --salida archivo_controles.txt
+
+Requiere una entrada con estructura valida. Aplica solo a Descripcion 1, 2, 3 y Extendida:
+- Sustituye cada tabulador por un espacio ASCII, sin comprimir espacios existentes.
+- Deja vacio un campo compuesto exclusivamente por bytes nulos (00).
+- Conserva nulos mezclados con texto o espacios y los registra como pendientes.
+
+No modifica codigos, precios, acentos, comillas, puntos, espacios externos ni otros bytes.
+Conserva las filas, las columnas y los saltos LF/CRLF, incluido un archivo sin salto final.
+Genera un TXT nuevo y una auditoria JSON con linea, columna, regla, codigo de articulo y bytes antes/despues; no sobrescribe archivos.
+La auditoria permite reconstruir los campos originales. Ambos archivos son privados y quedan excluidos de Git.
+La codificacion sigue sin confirmarse; esta limpieza opera en bytes y no recodifica texto.

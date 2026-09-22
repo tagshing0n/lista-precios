@@ -6,6 +6,7 @@ import unicodedata
 import json
 from validacion_numerica import validar_numeros
 from revision_texto import revisar_texto
+from limpieza_controles import limpiar_controles
 
 ENCABEZADOS = (
     'Almacen', 'Linea', 'Nombre de Linea', 'SubLinea',
@@ -150,6 +151,7 @@ def main():
                         default=Path(__file__).with_name('Lista-Precios.txt'))
     parser.add_argument('--encoding', help='Codificacion confirmada, por ejemplo cp1252.')
     modos = parser.add_mutually_exclusive_group()
+    modos.add_argument('--limpiar-controles', action='store_true', help='Aplicar reglas aprobadas a descripciones.')
     modos.add_argument('--revisar-texto', action='store_true', help='Revisar texto sin modificarlo.')
     modos.add_argument('--validar-numeros', action='store_true', help='Validar sin modificar los valores.')
     parser.add_argument('--reporte', type=Path, help='Nuevo archivo JSON para la validacion.')
@@ -158,8 +160,8 @@ def main():
     args = parser.parse_args()
     if args.reporte and not (args.validar_numeros or args.revisar_texto):
         parser.error('--reporte requiere --validar-numeros o --revisar-texto')
-    if args.salida and not args.corregir:
-        parser.error('--salida requiere --corregir')
+    if args.salida and not (args.corregir or args.limpiar_controles):
+        parser.error('--salida requiere --corregir o --limpiar-controles')
     try:
         if args.validar_numeros or args.revisar_texto:
             if args.validar_numeros:
@@ -177,6 +179,16 @@ def main():
             print('Archivo original sin modificar.')
             if args.validar_numeros and any(c['vacios'] or c['invalidos'] for c in reporte['resumen'].values()):
                 parser.exit(2, 'Hay valores vacios o invalidos; revisar el reporte.\n')
+        elif args.limpiar_controles:
+            destino = args.salida or args.archivo.with_name('Lista-Precios_controles.txt')
+            registro = limpiar_controles(args.archivo, destino, ENCABEZADOS)
+            print('Filas conservadas:', registro['filas_datos'])
+            print('Campos modificados:', registro['campos_modificados'])
+            print('Tabuladores sustituidos:', registro['tabuladores_sustituidos'])
+            print('Nulos retirados:', registro['nulos_retirados'])
+            print('Casos pendientes:', len(registro['pendientes']))
+            print('Salida:', destino)
+            print('Auditoria:', destino.with_suffix('.auditoria.json'))
         elif args.corregir:
             destino = args.salida or args.archivo.with_name('Lista-Precios_estructura.txt')
             corregir_estructura(args.archivo, destino)
