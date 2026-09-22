@@ -8,6 +8,7 @@ from validacion_numerica import validar_numeros
 from revision_texto import revisar_texto
 from limpieza_controles import limpiar_controles
 from limpieza_espacios import limpiar_espacios
+from correccion_caracteres import corregir_caracteres
 from estructura import elegir_correccion, firma_contexto
 
 ENCABEZADOS = (
@@ -163,6 +164,7 @@ def main():
                         default=Path(__file__).with_name('Lista-Precios.txt'))
     parser.add_argument('--encoding', help='Codificacion confirmada, por ejemplo cp1252.')
     modos = parser.add_mutually_exclusive_group()
+    modos.add_argument('--corregir-caracteres', action='store_true', help='Aplicar las cuatro sustituciones aprobadas.')
     modos.add_argument('--limpiar-espacios', action='store_true', help='Recortar solo espacios ASCII externos.')
     modos.add_argument('--limpiar-controles', action='store_true', help='Aplicar reglas aprobadas a descripciones.')
     modos.add_argument('--revisar-texto', action='store_true', help='Revisar texto sin modificarlo.')
@@ -173,8 +175,8 @@ def main():
     args = parser.parse_args()
     if args.reporte and not (args.validar_numeros or args.revisar_texto):
         parser.error('--reporte requiere --validar-numeros o --revisar-texto')
-    if args.salida and not (args.corregir or args.limpiar_controles or args.limpiar_espacios):
-        parser.error('--salida requiere --corregir, --limpiar-controles o --limpiar-espacios')
+    if args.salida and not (args.corregir or args.limpiar_controles or args.limpiar_espacios or args.corregir_caracteres):
+        parser.error('--salida requiere un modo de correccion o limpieza')
     try:
         if args.validar_numeros or args.revisar_texto:
             if args.validar_numeros:
@@ -192,6 +194,14 @@ def main():
             print('Archivo original sin modificar.')
             if args.validar_numeros and any(c['vacios'] or c['invalidos'] for c in reporte['resumen'].values()):
                 parser.exit(2, 'Hay valores vacios o invalidos; revisar el reporte.\n')
+        elif args.corregir_caracteres:
+            destino = args.salida or args.archivo.with_name('Lista-Precios_caracteres.txt')
+            registro = corregir_caracteres(args.archivo, destino, ENCABEZADOS)
+            print('Filas conservadas:', registro['filas_datos'])
+            print('Campos modificados:', registro['campos_modificados'])
+            print('Sustituciones:', registro['sustituciones_por_regla'])
+            print('Salida:', destino)
+            print('Auditoria:', destino.with_suffix('.auditoria.json'))
         elif args.limpiar_espacios:
             destino = args.salida or args.archivo.with_name('Lista-Precios_espacios.txt')
             registro = limpiar_espacios(args.archivo, destino, ENCABEZADOS)

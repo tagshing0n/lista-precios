@@ -129,4 +129,20 @@ No recorta espacios especiales como A0 ni intenta decidir si representan espacio
 La auditoria compacta registra por linea y columna las cantidades retiradas a izquierda y derecha. Esto permite reconstruir los bytes originales sin repetir los largos rellenos de espacios.
 Produce una copia y no sobrescribe entradas ni resultados previos. TXT y auditoria se escriben por separado.
 Orden de etapas: corregir estructura, limpiar controles, limpiar espacios y volver a validar.
-Las sustituciones de caracteres especiales siguen pendientes de revisar; no hay conversion general de codificacion.
+Hay cuatro sustituciones contextuales aprobadas; otros casos siguen pendientes. No hay conversion general de codificacion.
+
+## Correcciones contextuales aprobadas
+
+    python listaPrecios.py archivo_espacios.txt --corregir-caracteres --salida archivo_caracteres.txt
+
+Aplica exclusivamente en Descripcion 1, 2, 3 y Extendida estas palabras exactas (vista Windows-1252):
+- PI¥ON -> PIÑON
+- CONEXIàN -> CONEXIÓN
+- CONEXIàNES -> CONEXIONES
+- TUBERÖA -> TUBERÍA
+
+No reemplaza partes dentro de palabras mas largas o codigos. Los limites de palabra excluyen letras, numeros, guion bajo y bytes no ASCII adyacentes.
+No modifica Codigo de Articulo, Codigo Fabricante, Marca ni otras columnas.
+Conserva todos los bytes fuera de las coincidencias. No reinterpreta ni recodifica el archivo completo.
+Produce copia y auditoria con bytes originales/nuevos y cantidades por regla; no sobrescribe archivos.
+Los bytes de estas cuatro reglas estan fijados al formato observado y aprobado. Nuevas codificaciones o palabras distintas requieren revision.
