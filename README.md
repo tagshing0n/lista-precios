@@ -28,12 +28,12 @@ Sin argumentos busca `Lista-Precios.txt` junto al programa.
 - Comprueba 16 encabezados y cuenta los campos de cada fila.
 - Inspecciona caracteres especiales y espacios externos en los encabezados.
 - Mantiene como texto los valores originales; no convierte precios, cantidades ni codigos.
-- Corrige exclusivamente tres firmas de filas previamente revisadas y aprobadas.
-- Si cambia una de esas filas o aparece otra anomalia, se detiene sin generar salida.
+- Corrige campos vacios adicionales de descripciones mediante distribuciones unicas segun el esquema o contextos ya aprobados.
+- Si una anomalia resulta ambigua y no coincide con un contexto aprobado, genera un reporte de incidencias y no produce un TXT parcial.
 - Conserva los bytes y saltos de linea de las filas no modificadas.
 - Registra los cambios y las huellas SHA-256 de entrada y salida.
 
-Las firmas de correccion no contienen las filas empresariales. El ejemplo es completamente ficticio y tiene estructura valida, por lo que no necesita correcciones.
+Las firmas de correccion dependen del codigo y las descripciones, no de precios, existencias ni numeros de fila; no contienen las filas empresariales. El ejemplo es completamente ficticio y tiene estructura valida, por lo que no necesita correcciones.
 
 ## Limites conocidos
 
@@ -107,3 +107,13 @@ Conserva las filas, las columnas y los saltos LF/CRLF, incluido un archivo sin s
 Genera un TXT nuevo y una auditoria JSON con linea, columna, regla, codigo de articulo y bytes antes/despues; no sobrescribe archivos.
 La auditoria permite reconstruir los campos originales. Ambos archivos son privados y quedan excluidos de Git.
 La codificacion sigue sin confirmarse; esta limpieza opera en bytes y no recodifica texto.
+
+## Correccion de estructura reutilizable
+
+Con --corregir, las filas de 16 campos permanecen intactas.
+Para filas de 17 campos se evaluan todas las eliminaciones posibles de un campo vacio (solo espacios ASCII), comprobando las posiciones numericas, el codigo no vacio, la unidad de 1 a 8 letras mayusculas y el SAT de 8 digitos.
+Solo se retiran campos del bloque de descripciones. Si las alternativas compatibles asignan los mismos valores a las mismas columnas (ignorando solo espacios externos para comparar), se permite una correccion.
+Una distribucion anteriormente aprobada se reconoce por el codigo y las cinco partes del bloque de descripciones; permanece valida al cambiar precios, existencias o el orden de las filas.
+Una nueva ambiguedad, una descripcion cambiada que invalide la aprobacion o unas anclas incompatibles producen un reporte .incidencias.json con todas las filas pendientes y sus bytes, sin generar un TXT parcial.
+Estas comprobaciones son conservadoras y dependen del esquema observado; no verifican catalogos ni reconstruyen textos que contengan pipetas legitimas.
+La auditoria indica la regla usada y conserva cada campo retirado. No se descartan valores no vacios.

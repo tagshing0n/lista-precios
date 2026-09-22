@@ -26,7 +26,7 @@ class EstructuraTests(unittest.TestCase):
         ]
 
     def limpiar(self):
-        for nombre in ('entrada.txt', 'salida.txt', 'salida.auditoria.json'):
+        for nombre in ('entrada.txt', 'salida.txt', 'salida.auditoria.json', 'salida.incidencias.json'):
             (self.tmp / nombre).unlink(missing_ok=True)
         self.tmp.rmdir()
 
@@ -53,7 +53,7 @@ class EstructuraTests(unittest.TestCase):
         fila = b'|'.join(campos)
         original = self.cabecera + fila
         self.entrada.write_bytes(original)
-        firmas = {hashlib.sha256(fila).hexdigest(): 10}
+        firmas = {programa.firma_contexto(campos): 10}
         with patch.dict(programa.CORRECCIONES_APROBADAS, firmas, clear=True):
             self.corregir()
         self.assertEqual(self.salida.read_bytes(), self.cabecera + b'|'.join(self.campos))

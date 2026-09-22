@@ -7,6 +7,7 @@ import json
 from validacion_numerica import validar_numeros
 from revision_texto import revisar_texto
 from limpieza_controles import limpiar_controles
+from estructura import elegir_correccion, firma_contexto
 
 ENCABEZADOS = (
     'Almacen', 'Linea', 'Nombre de Linea', 'SubLinea',
@@ -76,7 +77,7 @@ def inspeccionar(ruta, encoding=None):
     print('No se modifico el archivo ni se eliminaron filas o campos.')
 
 
-CORRECCIONES_APROBADAS = {'dac4d9850eb9746b5d5d9c0a16567244d3d870b5ba2244f2fc27f2501f72ef2d': 10, 'f7bf7356dad76e78e55b35e29a0588469cba716a3a4bfc29e5e35d4ce37fdbb8': 11, '55f95fa1b2e4338f68d9c854a9f533599137011e75ff857eff8dc4a5fcf002f1': 10}
+CORRECCIONES_APROBADAS = {'172f918f6fe6cd2e1ce03e04dc5903259bc5dafd59c63de19ad082042886c18a': 10, '9b84902256c5bc53b5ccc23491b6638e8ed54f8f9efd4636e9348d511fde89f7': 11, '80298221c7aeaf267186236ff7399e0e388949f85245438196b35699ef724e07': 10}
 
 
 def corregir_estructura(ruta, destino):
@@ -100,9 +101,10 @@ def corregir_estructura(ruta, destino):
             resultado.append(original)
             continue
         huella = hashlib.sha256(cuerpo).hexdigest()
-        posicion = CORRECCIONES_APROBADAS.get(huella)
-        if len(campos) != 17 or posicion is None or campos[posicion].strip(b' '):
-            pendientes.append(numero)
+        posicion, regla = elegir_correccion(campos, CORRECCIONES_APROBADAS)
+        if posicion is None:
+            pendientes.append({'linea': numero, 'cantidad_campos': len(campos),
+                               'motivo': regla, 'fila_original_hex': cuerpo.hex()})
             continue
         eliminado = campos[posicion]
         nuevos = campos[:posicion] + campos[posicion + 1:]
@@ -111,17 +113,26 @@ def corregir_estructura(ruta, destino):
         resultado.append(b'|'.join(nuevos) + terminador)
         cambios.append({
             'linea': numero,
-            'codigo_articulo': campos[6].strip(b' ').decode('ascii'),
+            'codigo_articulo': campos[6].strip(b' ').decode('latin1'),
             'campo_eliminado_1_based': posicion + 1,
+            'regla': regla,
             'bytes_eliminados_hex': eliminado.hex(),
             'sha256_fila_original': huella,
         })
     if pendientes:
-        raise ValueError('Filas sin correccion aprobada; no se genero salida: ' + str(pendientes[:20]))
+        incidencias = destino.with_suffix('.incidencias.json')
+        if incidencias.resolve() == ruta.resolve():
+            raise ValueError('El reporte no puede reemplazar la entrada.')
+        with incidencias.open('x', encoding='utf-8') as archivo:
+            json.dump({'sha256_entrada': hashlib.sha256(contenido).hexdigest(),
+                       'incidencias': pendientes}, archivo, ensure_ascii=True, indent=2)
+        raise ValueError('Filas sin correccion aprobada; no se genero TXT. Reporte: ' + str(incidencias))
     salida = b''.join(resultado)
     if len(resultado) != len(lineas):
         raise ValueError('Cambio inesperado en el numero de filas.')
     reporte = destino.with_suffix('.auditoria.json')
+    if destino.resolve() == reporte.resolve():
+        raise ValueError('La salida y la auditoria deben ser diferentes.')
     if destino.resolve() == ruta.resolve() or reporte.resolve() == ruta.resolve():
         raise ValueError('La salida no puede reemplazar el archivo original.')
     if destino.exists() or reporte.exists():
@@ -133,7 +144,7 @@ def corregir_estructura(ruta, destino):
         'sha256_salida': hashlib.sha256(salida).hexdigest(),
         'filas_datos': len(lineas) - 1,
         'correcciones': cambios,
-        'politica': 'Solo filas exactas previamente aprobadas. Sin conversion de tipos.',
+        'politica': 'Distribucion unica segun esquema o contexto previamente aprobado. Sin conversion de tipos.',
     }
     with destino.open('xb') as archivo:
         archivo.write(salida)
