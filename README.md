@@ -117,3 +117,16 @@ Una distribucion anteriormente aprobada se reconoce por el codigo y las cinco pa
 Una nueva ambiguedad, una descripcion cambiada que invalide la aprobacion o unas anclas incompatibles producen un reporte .incidencias.json con todas las filas pendientes y sus bytes, sin generar un TXT parcial.
 Estas comprobaciones son conservadoras y dependen del esquema observado; no verifican catalogos ni reconstruyen textos que contengan pipetas legitimas.
 La auditoria indica la regla usada y conserva cada campo retirado. No se descartan valores no vacios.
+
+## Limpieza de espacios externos
+
+    python listaPrecios.py archivo_controles.txt --limpiar-espacios --salida archivo_espacios.txt
+
+Recorta exclusivamente espacios comunes ASCII (byte 20) al inicio y final de todos los campos y encabezados.
+Los campos compuestos solo por esos espacios quedan vacios; no desaparecen columnas ni filas.
+Conserva espacios internos, codigos con ceros iniciales, comas, puntos, acentos y cualquier byte no ASCII.
+No recorta espacios especiales como A0 ni intenta decidir si representan espacios o letras en otra codificacion.
+La auditoria compacta registra por linea y columna las cantidades retiradas a izquierda y derecha. Esto permite reconstruir los bytes originales sin repetir los largos rellenos de espacios.
+Produce una copia y no sobrescribe entradas ni resultados previos. TXT y auditoria se escriben por separado.
+Orden de etapas: corregir estructura, limpiar controles, limpiar espacios y volver a validar.
+Las sustituciones de caracteres especiales siguen pendientes de revisar; no hay conversion general de codificacion.
