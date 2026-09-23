@@ -129,7 +129,7 @@ No recorta espacios especiales como A0 ni intenta decidir si representan espacio
 La auditoria compacta registra por linea y columna las cantidades retiradas a izquierda y derecha. Esto permite reconstruir los bytes originales sin repetir los largos rellenos de espacios.
 Produce una copia y no sobrescribe entradas ni resultados previos. TXT y auditoria se escriben por separado.
 Orden de etapas: corregir estructura, limpiar controles, limpiar espacios y volver a validar.
-Hay cuatro sustituciones contextuales aprobadas; otros casos siguen pendientes. No hay conversion general de codificacion.
+Hay 16 sustituciones contextuales aprobadas; otros casos siguen pendientes. No hay conversion general de codificacion.
 
 ## Correcciones contextuales aprobadas
 
@@ -140,12 +140,24 @@ Aplica exclusivamente en Descripcion 1, 2, 3 y Extendida estas palabras exactas 
 - CONEXIàN -> CONEXIÓN
 - CONEXIàNES -> CONEXIONES
 - TUBERÖA -> TUBERÍA
+- CIGUE¥AL -> CIGÜEÑAL
+- CIGšE¥AL -> CIGÜEÑAL
+- TEFLàN -> TEFLÓN
+- CAMIàN -> CAMIÓN
+- A¥OS -> AÑOS
+- BRASILE¥O -> BRASILEÑO
+- DISE¥O -> DISEÑO
+- MU¥ON -> MUÑÓN
+- ANTIEMPA¥ANTE -> ANTIEMPAÑANTE
+- U¥A -> UÑA
+- ARA¥A -> ARAÑA
+- MALIBé -> MALIBÚ
 
 No reemplaza partes dentro de palabras mas largas o codigos. Los limites de palabra excluyen letras, numeros, guion bajo y bytes no ASCII adyacentes.
 No modifica Codigo de Articulo, Codigo Fabricante, Marca ni otras columnas.
 Conserva todos los bytes fuera de las coincidencias. No reinterpreta ni recodifica el archivo completo.
 Produce copia y auditoria con bytes originales/nuevos y cantidades por regla; no sobrescribe archivos.
-Los bytes de estas cuatro reglas estan fijados al formato observado y aprobado. Nuevas codificaciones o palabras distintas requieren revision.
+Los bytes de estas 16 reglas estan fijados al formato observado y aprobado. Nuevas codificaciones o palabras distintas requieren revision.
 
 ## Ejecucion completa
 
@@ -167,7 +179,7 @@ Se detiene si Excel no puede representar algun valor sin truncar o eliminar cara
 ### Incidencias
 
 Incluye precios cero, valores invalidos, nombres de linea vacios y comparaciones de caracteres no ASCII (no son automaticamente errores).
-La lectura Windows-1252 es provisional y se indica en el libro. Solo aplica las cuatro sustituciones aprobadas; no corrige otros simbolos.
+La lectura Windows-1252 es provisional y se indica en el libro. Solo aplica las 16 sustituciones aprobadas; no corrige otros simbolos.
 El selector Pendiente/Revisado corresponde a esa copia; las decisiones manuales no se importan en futuras ejecuciones.
 Si hay ambiguedad estructural no genera Excel; la carpeta de auditoria conserva las incidencias y el estado fallido.
 Salidas, originales y reportes estan excluidos de Git.

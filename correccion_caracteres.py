@@ -10,6 +10,18 @@ REGLAS = (
     ('conexion', b'CONEXI\xe0N', b'CONEXI\xd3N'),
     ('conexiones', b'CONEXI\xe0NES', b'CONEXIONES'),
     ('tuberia', b'TUBER\xd6A', b'TUBER\xcdA'),
+    ('ciguenal_enye', b'CIGUE\xa5AL', b'CIG\xdcE\xd1AL'),
+    ('ciguenal_dieresis', b'CIG\x9aE\xa5AL', b'CIG\xdcE\xd1AL'),
+    ('teflon', b'TEFL\xe0N', b'TEFL\xd3N'),
+    ('camion', b'CAMI\xe0N', b'CAMI\xd3N'),
+    ('anos', b'A\xa5OS', b'A\xd1OS'),
+    ('brasileno', b'BRASILE\xa5O', b'BRASILE\xd1O'),
+    ('diseno', b'DISE\xa5O', b'DISE\xd1O'),
+    ('munon', b'MU\xa5ON', b'MU\xd1\xd3N'),
+    ('antiempanante', b'ANTIEMPA\xa5ANTE', b'ANTIEMPA\xd1ANTE'),
+    ('una', b'U\xa5A', b'U\xd1A'),
+    ('arana', b'ARA\xa5A', b'ARA\xd1A'),
+    ('malibu', b'MALIB\xe9', b'MALIB\xda'),
 )
 LIMITES = rb'A-Za-z0-9_\x80-\xff'
 PATRONES = tuple(

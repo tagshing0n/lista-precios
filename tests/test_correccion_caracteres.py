@@ -6,6 +6,23 @@ from correccion_caracteres import corregir_caracteres, transformar_palabras
 
 
 class PalabrasTests(unittest.TestCase):
+    def test_nuevas_palabras_y_abreviaturas_pendientes(self):
+        origen = 'CIGUE¥AL CIGšE¥AL TEFLàN CAMIàN A¥OS BRASILE¥O DISE¥O MU¥ON ANTIEMPA¥ANTE U¥A ARA¥A MALIBé'.encode('cp1252')
+        esperado = 'CIGÜEÑAL CIGÜEÑAL TEFLÓN CAMIÓN AÑOS BRASILEÑO DISEÑO MUÑÓN ANTIEMPAÑANTE UÑA ARAÑA MALIBÚ'.encode('cp1252')
+        nuevo, cambios = transformar_palabras(origen)
+        self.assertEqual(nuevo, esperado)
+        self.assertEqual(sum(cambios.values()), 12)
+        self.assertEqual(transformar_palabras(nuevo), (nuevo, {}))
+        pendiente = 'CIGšE CIGUEÑAL CIG_EÑAL Diésel REPøFNO'.encode('cp1252')
+        self.assertEqual(transformar_palabras(pendiente), (pendiente, {}))
+
+    def test_nuevas_reglas_no_modifican_palabras_mas_largas(self):
+        for palabra in ('CIGUE¥AL', 'CIGšE¥AL', 'TEFLàN', 'CAMIàN', 'A¥OS',
+                        'BRASILE¥O', 'DISE¥O', 'MU¥ON', 'ANTIEMPA¥ANTE', 'U¥A', 'ARA¥A', 'MALIBé'):
+            for texto in ('X'+palabra, palabra+'ES', palabra+'_1', 'Ñ'+palabra):
+                raw = texto.encode('cp1252')
+                self.assertEqual(transformar_palabras(raw), (raw, {}))
+
     def test_cuatro_sustituciones_y_plural_sin_acento(self):
         origen = b'PI\xa5ON CONEXI\xe0N CONEXI\xe0NES TUBER\xd6A'
         nuevo, cambios = transformar_palabras(origen)
