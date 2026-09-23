@@ -17,6 +17,9 @@ def generar_excel(ruta, destino, encabezados, numericas, textos, corregir, encod
         raise ValueError('La salida debe terminar en .xlsx.')
     if destino.exists() or ruta.resolve() == destino.resolve():
         raise ValueError('El destino existe o coincide con la entrada.')
+    reducido = destino.with_name(destino.stem + '_reducida.xlsx')
+    if reducido.exists() or ruta.resolve() == reducido.resolve():
+        raise ValueError('El destino reducido existe o coincide con la entrada.')
     carpeta = destino.with_name(destino.stem + '_auditoria')
     if carpeta.exists():
         raise ValueError('La carpeta de auditoria ya existe; elige otro destino.')
@@ -46,6 +49,12 @@ def generar_excel(ruta, destino, encabezados, numericas, textos, corregir, encod
         manifiesto['estado'] = 'generado_con_incidencias' if resumen['incidencias'] else 'generado'
         manifiesto['sha256_excel'] = hashlib.sha256(destino.read_bytes()).hexdigest()
         manifiesto['excel'] = destino.name
+        exportar_excel(caracteres, reducido, encabezados, numeros, texto, encoding, ruta.name,
+                       reducida=True)
+        manifiesto['excel_reducido'] = reducido.name
+        manifiesto['sha256_excel_reducido'] = hashlib.sha256(reducido.read_bytes()).hexdigest()
+        manifiesto['orden'] = ['Linea ascendente numerica', 'SubLinea ascendente numerica',
+                              'Codigo de Articulo ascendente sin distinguir mayusculas']
         return manifiesto
     except Exception as error:
         manifiesto['estado'] = 'fallido'

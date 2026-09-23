@@ -164,7 +164,7 @@ def main():
                         default=Path(__file__).with_name('Lista-Precios.txt'))
     parser.add_argument('--encoding', help='Codificacion confirmada, por ejemplo cp1252.')
     modos = parser.add_mutually_exclusive_group()
-    modos.add_argument('--generar-excel', action='store_true', help='Ejecutar todas las etapas y generar un Excel.')
+    modos.add_argument('--generar-excel', action='store_true', help='Ejecutar todas las etapas y generar los Excel completo y reducido, ordenados.')
     modos.add_argument('--corregir-caracteres', action='store_true', help='Aplicar las cuatro sustituciones aprobadas.')
     modos.add_argument('--limpiar-espacios', action='store_true', help='Recortar solo espacios ASCII externos.')
     modos.add_argument('--limpiar-controles', action='store_true', help='Aplicar reglas aprobadas a descripciones.')

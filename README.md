@@ -40,7 +40,7 @@ Las firmas de correccion dependen del codigo y las descripciones, no de precios,
 La inspeccion intenta UTF-8 y, si falla, usa una vista provisional Latin-1. Esto no identifica con certeza la codificacion original.
 La correccion opera sobre bytes con encabezados ASCII; no admite actualmente un encabezado con BOM o UTF-16, aunque la inspeccion puede leerlos.
 La salida TXT y su auditoria se escriben por separado: un fallo de disco puede dejar solo la primera.
-Los TXT conservan las 16 columnas. El Excel omite Nombre de SubLinea y mueve Existencia al final. La validacion numerica comprueba formatos y marca precios cero; no consulta catalogos oficiales ni aplica otras reglas comerciales.
+Los TXT conservan las 16 columnas. Se generan dos Excel: completo y reducido, ambos con Existencia al final. La validacion numerica comprueba formatos y marca precios cero; no consulta catalogos oficiales ni aplica otras reglas comerciales.
 
 ## Datos privados
 
@@ -152,11 +152,15 @@ Los bytes de estas cuatro reglas estan fijados al formato observado y aprobado. 
     python -m pip install -r requirements.txt
     python listaPrecios.py ruta/Lista-Precios.txt --generar-excel
 
-El nombre incluye fecha y hora si no indicas --salida. Cada ejecucion conserva una carpeta de auditoria junto al libro con copia exacta del origen, intermedios y reportes. No sobrescribe resultados existentes.
+El nombre incluye fecha y hora si no indicas --salida. Cada ejecucion conserva una carpeta de auditoria compartida con copia exacta del origen, intermedios y reportes. No sobrescribe resultados existentes. Si falla la segunda exportacion, el registro indica el fallo y conserva el primer libro ya generado.
 
     python listaPrecios.py ruta/Lista-Precios.txt --generar-excel --salida Lista_Precios.xlsx
 
-La hoja principal tiene 15 columnas: se elimina Nombre de SubLinea y se mueve Existencia al final. Las pipetas son delimitadores del TXT, no columnas. Intermedios y auditorias conservan las 16 columnas originales.
+El comando genera dos libros: Lista_Precios.xlsx con las 16 columnas (Nombre de SubLinea despues de SubLinea), y Lista_Precios_reducida.xlsx con 14 columnas, sin Nombre de SubLinea ni Codigo Fabricante. Ambos mantienen Existencia al final. Las pipetas son delimitadores del TXT, no columnas. Intermedios y auditorias conservan las 16 columnas originales.
+
+Ambos libros ordenan las filas por Linea numerica ascendente, luego SubLinea numerica ascendente y finalmente Codigo de Articulo alfabeticamente, sin distinguir mayusculas. Los codigos se comparan como texto: 10 precede a 2. Los empates conservan el orden original. Los identificadores con ceros iniciales se ordenan por su valor numerico sin cambiar el texto guardado. Valores no numericos de Linea/SubLinea se conservan despues de los numeros y los vacios al final. El orden textual es Unicode normalizado; signos y letras acentuadas pueden diferir de la intercalacion regional de Excel.
+
+En Incidencias, Linea TXT conserva la referencia al origen y Fila Excel apunta a la nueva posicion ordenada. Ambos libros mantienen el diagnostico completo, incluso de las columnas omitidas en el reducido.
 Codigo de Articulo, Codigo Fabricante y Codigo SAT son texto. Precios y existencias validos son numeros; invalidos o valores fuera de precision segura permanecen como texto con aviso. Identificadores con ceros iniciales siguen como texto. Textos que comienzan por = nunca se convierten en formulas.
 Se detiene si Excel no puede representar algun valor sin truncar o eliminar caracteres.
 

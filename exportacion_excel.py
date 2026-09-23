@@ -4,6 +4,7 @@ from math import ceil
 from decimal import Decimal
 import re
 import warnings
+import unicodedata
 from openpyxl import Workbook
 from openpyxl.cell import WriteOnlyCell
 from openpyxl.styles import Font, PatternFill, Alignment
@@ -71,7 +72,20 @@ def tabla(ws, nombre, encabezados, fin, fila_encabezado=1):
     ws.auto_filter.ref = ref
 
 
-def exportar_excel(entrada, destino, encabezados, numerico, texto, encoding='cp1252', fuente=None):
+def clave_orden(row):
+    """Numeros primero; textos invalidos y vacios al final, sin descartarlos."""
+    def numero(columna, valor):
+        raw = str(valor).encode('ascii', errors='replace')
+        estado, valor_decimal, _ = clasificar(columna, raw)
+        if estado == 'valido':
+            return (0, valor_decimal, '')
+        return (2 if valor == '' else 1, Decimal(0), str(valor).casefold())
+    return (numero('Linea', row[1]), numero('SubLinea', row[3]),
+            unicodedata.normalize('NFC', str(row[6])).casefold())
+
+
+def exportar_excel(entrada, destino, encabezados, numerico, texto, encoding='cp1252', fuente=None,
+                   reducida=False):
     if destino.exists() or destino.resolve() == entrada.resolve():
         raise ValueError('El Excel de salida ya existe o coincide con la entrada.')
     # Validacion completa antes de iniciar la escritura del libro.
@@ -115,8 +129,13 @@ def exportar_excel(entrada, destino, encabezados, numerico, texto, encoding='cp1
         texto_seguro(alternativa, n, col)
     if len(issues) > 1048571:
         raise ValueError('Las incidencias exceden la capacidad de la hoja.')
-    columnas_salida = [c for c in encabezados if c not in {'Nombre de SubLinea', 'Existencia'}] + ['Existencia']
+    excluidas = {'Existencia'}
+    if reducida:
+        excluidas.update({'Nombre de SubLinea', 'Codigo Fabricante'})
+    columnas_salida = [c for c in encabezados if c not in excluidas] + ['Existencia']
     indices_salida = [encabezados.index(c) for c in columnas_salida]
+    ordenadas = sorted(enumerate(rows, 2), key=lambda item: clave_orden(item[1]))
+    filas_excel = {linea: fila for fila, (linea, _) in enumerate(ordenadas, 2)}
     wb = Workbook(write_only=True)
     wb.properties.title = 'Lista de precios'
     wb.properties.creator = 'listaPrecios'
@@ -126,7 +145,7 @@ def exportar_excel(entrada, destino, encabezados, numerico, texto, encoding='cp1
     revision.sheet_view.showGridLines = False
     datos.sheet_properties.tabColor = AZUL
     revision.sheet_properties.tabColor = 'D99B32'
-    datos.freeze_panes = 'F2'
+    datos.freeze_panes = f'{get_column_letter(columnas_salida.index("Codigo de Articulo") + 2)}2'
     revision.freeze_panes = 'D6'
     widths = [11,11,25,13,28,16,23,19,24,43,43,43,76,18,18,25]
     widths = [widths[i] for i in indices_salida]
@@ -134,7 +153,7 @@ def exportar_excel(entrada, destino, encabezados, numerico, texto, encoding='cp1
         datos.column_dimensions[get_column_letter(i)].width = ancho
     datos.row_dimensions[1].height = 32
     datos.append([celda(datos,c,encabezado=True) for c in columnas_salida])
-    for n,original_row in enumerate(rows,2):
+    for n,(_, original_row) in enumerate(ordenadas,2):
         row = [original_row[i] for i in indices_salida]
         altura = max([24] + [ceil(len(str(row[i])) / (widths[i] - 3)) * 13 + 8 for i,c in enumerate(columnas_salida) if c in DESCRIPCIONES])
         datos.row_dimensions[n].height = min(altura, 400)
@@ -145,8 +164,9 @@ def exportar_excel(entrada, destino, encabezados, numerico, texto, encoding='cp1
         datos.append(celdas)
     if rows:
         tabla(datos,'ListaPrecios',columnas_salida,len(rows)+1)
-        datos.conditional_formatting.add(f'F2:F{len(rows)+1}', FormulaRule(
-            formula=['AND(ISNUMBER(F2),F2=0)'], fill=PatternFill('solid',fgColor='FFF2CC')))
+        precio = get_column_letter(columnas_salida.index('Precio de Lista') + 1)
+        datos.conditional_formatting.add(f'{precio}2:{precio}{len(rows)+1}', FormulaRule(
+            formula=[f'AND(ISNUMBER({precio}2),{precio}2=0)'], fill=PatternFill('solid',fgColor='FFF2CC')))
     headers = ['Linea TXT','Fila Excel','Codigo de Articulo','Columna','Motivo','Valor mostrado','Vista alternativa CP850','Revision']
     issue_widths = [12,12,24,27,52,72,72,18]
     for i,ancho in enumerate(issue_widths,1):
@@ -161,7 +181,7 @@ def exportar_excel(entrada, destino, encabezados, numerico, texto, encoding='cp1
     revision.append([celda(revision,c,encabezado=True) for c in headers])
     for fila,(n,col,motivo,valor,alternativa) in enumerate(issues,6):
         codigo = str(rows[n-2][6])
-        valores = [n,n,codigo,col,motivo,valor,alternativa,'Pendiente']
+        valores = [n,filas_excel[n],codigo,col,motivo,valor,alternativa,'Pendiente']
         revision.row_dimensions[fila].height = min(400,max(28,*[
             ceil(len(str(valores[i]))/(issue_widths[i]-3))*13+8 for i in (4,5,6)]))
         revision.append([celda(revision,v,envolver=i in (4,5,6)) for i,v in enumerate(valores)])

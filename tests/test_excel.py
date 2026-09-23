@@ -64,8 +64,8 @@ class ProcesoTests(unittest.TestCase):
         self.addCleanup(wb.close)
         ws = wb['Lista de precios']
         heads = [c.value for c in ws[1]]
-        self.assertEqual(len(heads),15)
-        self.assertNotIn('Nombre de SubLinea',heads)
+        self.assertEqual(len(heads),16)
+        self.assertEqual(heads[4],'Nombre de SubLinea')
         self.assertEqual(heads[-1],'Existencia')
         values = {head: ws.cell(2,i+1) for i,head in enumerate(heads)}
         self.assertEqual(values['Codigo de Articulo'].value,'000123')
@@ -77,7 +77,48 @@ class ProcesoTests(unittest.TestCase):
         self.assertEqual(values['Existencia'].value,1234)
         self.assertEqual(values['Descripcion 1'].value,'PI\u00d1ON DEMO')
         self.assertGreater(resultado['incidencias'],0)
-        self.assertEqual(ws.tables['ListaPrecios'].ref,'A1:O2')
+        self.assertEqual(ws.tables['ListaPrecios'].ref,'A1:P2')
+        reducido = load_workbook(self.root/'salida_reducida.xlsx')
+        self.addCleanup(reducido.close)
+        headers_reducidos = [c.value for c in reducido['Lista de precios'][1]]
+        self.assertEqual(len(headers_reducidos),14)
+        self.assertNotIn('Nombre de SubLinea',headers_reducidos)
+        self.assertNotIn('Codigo Fabricante',headers_reducidos)
+        self.assertEqual(headers_reducidos[-1],'Existencia')
+
+    def test_orden_multinivel_y_referencias_de_incidencias(self):
+        originales = []
+        for linea,sublinea,codigo in [('10','1','A'),('2','10','A'),('2','2','B'),
+                                      ('02','2','a'),('2','2','A'),('2','2','001')]:
+            campos = self.campos.copy()
+            campos[1],campos[3],campos[6] = linea.encode(),sublinea.encode(),codigo.encode()
+            originales.append(campos)
+        self.entrada.write_bytes(self.cabecera+b'\n'.join(b'|'.join(r) for r in originales))
+        self.ejecutar()
+        for nombre in ('salida.xlsx','salida_reducida.xlsx'):
+            wb = load_workbook(self.root/nombre)
+            self.addCleanup(wb.close)
+            ws = wb['Lista de precios']
+            heads = [c.value for c in ws[1]]
+            rows = list(ws.iter_rows(min_row=2,values_only=True))
+            codigos = [r[heads.index('Codigo de Articulo')] for r in rows]
+            self.assertEqual(codigos,['001','a','A','B','A','A'])
+            self.assertEqual([r[1] for r in rows],[2,'02',2,2,2,10])
+            for issue in wb['Incidencias'].iter_rows(min_row=6,values_only=True):
+                origen,fila,codigo = issue[:3]
+                self.assertEqual(originales[origen-2][6].decode(),codigo)
+                self.assertEqual(ws.cell(fila,heads.index('Codigo de Articulo')+1).value,codigo)
+                self.assertEqual(str(ws.cell(fila,2).value), originales[origen-2][1].decode())
+
+    def test_rechaza_reducido_existente_antes_de_crear_archivos(self):
+        self.entrada.write_bytes(self.cabecera+b'|'.join(self.campos))
+        reducido = self.root/'salida_reducida.xlsx'
+        reducido.write_bytes(b'CONSERVAR')
+        with self.assertRaises(ValueError):
+            self.ejecutar()
+        self.assertEqual(reducido.read_bytes(),b'CONSERVAR')
+        self.assertFalse(self.destino.exists())
+        self.assertFalse((self.root/'salida_auditoria').exists())
 
     def test_fallo_estructural_no_genera_excel(self):
         campos = self.campos[:10] + [b''] + self.campos[10:]
