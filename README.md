@@ -2,11 +2,11 @@
 
 Herramienta Python para inspeccionar y corregir de forma controlada listas de precios delimitadas por `|`.
 
-Proyecto en desarrollo: primero se asegura la estructura y la conservacion de datos; ya incluye validacion numerica sin modificar valores. La conversion y exportacion final estan pendientes.
+Proyecto en desarrollo: primero se asegura la estructura y la conservacion de datos; ya incluye validacion numerica sin modificar valores. Incluye exportacion Excel con los casos pendientes en una hoja de incidencias.
 
 ## Requisitos
 
-Python 3.10 o posterior. Solo utiliza la biblioteca estandar; no requiere instalar paquetes.
+Python 3.10 o posterior. La limpieza utiliza la biblioteca estandar. Para exportar Excel y ejecutar todas las pruebas instala: python -m pip install -r requirements.txt.
 
 ## Uso
 
@@ -27,7 +27,7 @@ Sin argumentos busca `Lista-Precios.txt` junto al programa.
 
 - Comprueba 16 encabezados y cuenta los campos de cada fila.
 - Inspecciona caracteres especiales y espacios externos en los encabezados.
-- Mantiene como texto los valores originales; no convierte precios, cantidades ni codigos.
+- Conserva los valores originales en los TXT; la exportacion Excel convierte numeros validos y mantiene los codigos como texto.
 - Corrige campos vacios adicionales de descripciones mediante distribuciones unicas segun el esquema o contextos ya aprobados.
 - Si una anomalia resulta ambigua y no coincide con un contexto aprobado, genera un reporte de incidencias y no produce un TXT parcial.
 - Conserva los bytes y saltos de linea de las filas no modificadas.
@@ -40,7 +40,7 @@ Las firmas de correccion dependen del codigo y las descripciones, no de precios,
 La inspeccion intenta UTF-8 y, si falla, usa una vista provisional Latin-1. Esto no identifica con certeza la codificacion original.
 La correccion opera sobre bytes con encabezados ASCII; no admite actualmente un encabezado con BOM o UTF-16, aunque la inspeccion puede leerlos.
 La salida TXT y su auditoria se escriben por separado: un fallo de disco puede dejar solo la primera.
-No se eliminan, renombran o reordenan columnas. La validacion numerica comprueba formatos y marca precios cero; no consulta catalogos oficiales ni aplica otras reglas comerciales.
+Los TXT conservan las 16 columnas. El Excel omite Nombre de SubLinea y mueve Existencia al final. La validacion numerica comprueba formatos y marca precios cero; no consulta catalogos oficiales ni aplica otras reglas comerciales.
 
 ## Datos privados
 
@@ -89,7 +89,7 @@ Un Precio de Lista igual a cero genera el aviso precio_cero_requiere_revision. E
 Cuenta vacios, espacios externos e internos multiples, codigos formados solo por digitos, ceros iniciales, puntos aislados, controles ASCII y bytes no ASCII. No modifica ningun valor ni considera automaticamente erroneos los textos numericos, vacios o simbolos.
 El reporte incluye hasta cinco numeros de linea por categoria y el detalle completo de todos los campos con controles o bytes no ASCII.
 Las vistas Latin-1, Windows-1252 y CP850 son comparaciones para revision humana: no identifican por si mismas la codificacion ni autorizan reemplazos. Los bytes originales se guardan en hexadecimal, incluso si una vista no puede decodificar un caracter.
-No se eliminan tabuladores, espacios especiales, acentos ni puntos. Las reglas de limpieza se definiran tras revisar los casos.
+Este diagnostico no modifica tabuladores, espacios especiales, acentos ni puntos. Las etapas de limpieza aplican solo las reglas aprobadas descritas abajo.
 La revision devuelve 0 si termina (aunque haya observaciones), y 1 por errores de archivo o estructura.
 Los reportes contienen informacion del archivo de entrada y permanecen privados.
 
@@ -146,3 +146,24 @@ No modifica Codigo de Articulo, Codigo Fabricante, Marca ni otras columnas.
 Conserva todos los bytes fuera de las coincidencias. No reinterpreta ni recodifica el archivo completo.
 Produce copia y auditoria con bytes originales/nuevos y cantidades por regla; no sobrescribe archivos.
 Los bytes de estas cuatro reglas estan fijados al formato observado y aprobado. Nuevas codificaciones o palabras distintas requieren revision.
+
+## Ejecucion completa
+
+    python -m pip install -r requirements.txt
+    python listaPrecios.py ruta/Lista-Precios.txt --generar-excel
+
+El nombre incluye fecha y hora si no indicas --salida. Cada ejecucion conserva una carpeta de auditoria junto al libro con copia exacta del origen, intermedios y reportes. No sobrescribe resultados existentes.
+
+    python listaPrecios.py ruta/Lista-Precios.txt --generar-excel --salida Lista_Precios.xlsx
+
+La hoja principal tiene 15 columnas: se elimina Nombre de SubLinea y se mueve Existencia al final. Las pipetas son delimitadores del TXT, no columnas. Intermedios y auditorias conservan las 16 columnas originales.
+Codigo de Articulo, Codigo Fabricante y Codigo SAT son texto. Precios y existencias validos son numeros; invalidos o valores fuera de precision segura permanecen como texto con aviso. Identificadores con ceros iniciales siguen como texto. Textos que comienzan por = nunca se convierten en formulas.
+Se detiene si Excel no puede representar algun valor sin truncar o eliminar caracteres.
+
+### Incidencias
+
+Incluye precios cero, valores invalidos, nombres de linea vacios y comparaciones de caracteres no ASCII (no son automaticamente errores).
+La lectura Windows-1252 es provisional y se indica en el libro. Solo aplica las cuatro sustituciones aprobadas; no corrige otros simbolos.
+El selector Pendiente/Revisado corresponde a esa copia; las decisiones manuales no se importan en futuras ejecuciones.
+Si hay ambiguedad estructural no genera Excel; la carpeta de auditoria conserva las incidencias y el estado fallido.
+Salidas, originales y reportes estan excluidos de Git.

@@ -1,0 +1,96 @@
+from pathlib import Path
+import contextlib
+import io
+import shutil
+import unittest
+import uuid
+from openpyxl import load_workbook
+import listaPrecios
+from proceso_completo import generar_excel
+from exportacion_excel import valor_excel, texto_seguro
+
+
+class ValoresTests(unittest.TestCase):
+    def test_identificadores_y_numeros(self):
+        self.assertEqual(valor_excel('Codigo SAT',b'00123456','cp1252',2)[0],'00123456')
+        self.assertEqual(valor_excel('Precio de Lista',b'1,234.50','cp1252',2)[0],1234.5)
+        self.assertEqual(valor_excel('Precio de Lista',b'INVALIDO','cp1252',2)[0],'INVALIDO')
+        self.assertEqual(valor_excel('Almacen',b'001','cp1252',2)[0],'001')
+
+    def test_precision_y_texto_demasiado_largo(self):
+        valor,aviso = valor_excel('Existencia',b'1234567890123456','cp1252',2)
+        self.assertEqual(valor,'1234567890123456')
+        self.assertTrue(aviso)
+        with self.assertRaises(ValueError):
+            texto_seguro('a' * 32768, 2, 'Descripcion 1')
+
+    def test_control_no_aprobado_no_se_borra(self):
+        with self.assertRaises(ValueError):
+            texto_seguro('A\x00B',2,'Descripcion 1')
+
+
+class ProcesoTests(unittest.TestCase):
+    def setUp(self):
+        self.work = Path(__file__).resolve().parents[1] / 'work'
+        self.root = self.work / ('test_excel_' + uuid.uuid4().hex)
+        self.root.mkdir(parents=True)
+        self.addCleanup(self.limpiar)
+        self.entrada = self.root / 'entrada.txt'
+        self.destino = self.root / 'salida.xlsx'
+        self.campos = [b'1',b'2',b' LINEA ',b'201',b'SUBLINEA',b'1,234.000',
+                       b'000123',b'0.00',b'MARCA',b'PI\xa5ON\tDEMO',b'',b'',b'.',
+                       b'PZ',b'00123456',b'=CODIGO']
+        self.cabecera = b'|'.join(c.encode() for c in listaPrecios.ENCABEZADOS) + b'\r\n'
+
+    def limpiar(self):
+        root = self.root.resolve()
+        if not root.is_relative_to(self.work.resolve()) or not root.name.startswith('test_excel_'):
+            raise AssertionError('Ruta temporal no valida')
+        shutil.rmtree(root)
+
+    def ejecutar(self):
+        with contextlib.redirect_stdout(io.StringIO()):
+            return generar_excel(self.entrada,self.destino,listaPrecios.ENCABEZADOS,
+                                 listaPrecios.COLUMNAS_NUMERICAS,listaPrecios.COLUMNAS_TEXTO,
+                                 listaPrecios.corregir_estructura)
+
+    def test_pipeline_tipos_columnas_y_formula_literal(self):
+        campos = self.campos[:11] + [b''] + self.campos[11:]
+        original = self.cabecera + b'|'.join(campos)
+        self.entrada.write_bytes(original)
+        resultado = self.ejecutar()
+        self.assertEqual(self.entrada.read_bytes(),original)
+        wb = load_workbook(self.destino)
+        self.addCleanup(wb.close)
+        ws = wb['Lista de precios']
+        heads = [c.value for c in ws[1]]
+        self.assertEqual(len(heads),15)
+        self.assertNotIn('Nombre de SubLinea',heads)
+        self.assertEqual(heads[-1],'Existencia')
+        values = {head: ws.cell(2,i+1) for i,head in enumerate(heads)}
+        self.assertEqual(values['Codigo de Articulo'].value,'000123')
+        self.assertEqual(values['Codigo SAT'].value,'00123456')
+        self.assertEqual(values['Codigo Fabricante'].value,'=CODIGO')
+        self.assertEqual(values['Codigo Fabricante'].data_type,'s')
+        self.assertEqual(values['Precio de Lista'].value,0)
+        self.assertEqual(values['Precio de Lista'].data_type,'n')
+        self.assertEqual(values['Existencia'].value,1234)
+        self.assertEqual(values['Descripcion 1'].value,'PI\u00d1ON DEMO')
+        self.assertGreater(resultado['incidencias'],0)
+        self.assertEqual(ws.tables['ListaPrecios'].ref,'A1:O2')
+
+    def test_fallo_estructural_no_genera_excel(self):
+        campos = self.campos[:10] + [b''] + self.campos[10:]
+        campos[11:14] = [b'SEGUNDA',b'TERCERA',b'']
+        self.entrada.write_bytes(self.cabecera + b'|'.join(campos))
+        with self.assertRaises(ValueError):
+            self.ejecutar()
+        self.assertFalse(self.destino.exists())
+        self.assertTrue((self.root / 'salida_auditoria' / '01_estructura.incidencias.json').exists())
+
+    def test_rechaza_destino_existente(self):
+        self.entrada.write_bytes(self.cabecera+b'|'.join(self.campos))
+        self.destino.write_bytes(b'CONSERVAR')
+        with self.assertRaises(ValueError):
+            self.ejecutar()
+        self.assertEqual(self.destino.read_bytes(),b'CONSERVAR')

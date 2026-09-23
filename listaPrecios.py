@@ -164,6 +164,7 @@ def main():
                         default=Path(__file__).with_name('Lista-Precios.txt'))
     parser.add_argument('--encoding', help='Codificacion confirmada, por ejemplo cp1252.')
     modos = parser.add_mutually_exclusive_group()
+    modos.add_argument('--generar-excel', action='store_true', help='Ejecutar todas las etapas y generar un Excel.')
     modos.add_argument('--corregir-caracteres', action='store_true', help='Aplicar las cuatro sustituciones aprobadas.')
     modos.add_argument('--limpiar-espacios', action='store_true', help='Recortar solo espacios ASCII externos.')
     modos.add_argument('--limpiar-controles', action='store_true', help='Aplicar reglas aprobadas a descripciones.')
@@ -175,8 +176,8 @@ def main():
     args = parser.parse_args()
     if args.reporte and not (args.validar_numeros or args.revisar_texto):
         parser.error('--reporte requiere --validar-numeros o --revisar-texto')
-    if args.salida and not (args.corregir or args.limpiar_controles or args.limpiar_espacios or args.corregir_caracteres):
-        parser.error('--salida requiere un modo de correccion o limpieza')
+    if args.salida and not (args.corregir or args.limpiar_controles or args.limpiar_espacios or args.corregir_caracteres or args.generar_excel):
+        parser.error('--salida requiere un modo de correccion, limpieza o --generar-excel')
     try:
         if args.validar_numeros or args.revisar_texto:
             if args.validar_numeros:
@@ -194,6 +195,15 @@ def main():
             print('Archivo original sin modificar.')
             if args.validar_numeros and any(c['vacios'] or c['invalidos'] for c in reporte['resumen'].values()):
                 parser.exit(2, 'Hay valores vacios o invalidos; revisar el reporte.\n')
+        elif args.generar_excel:
+            from proceso_completo import generar_excel, destino_por_defecto
+            destino = args.salida or destino_por_defecto(args.archivo)
+            registro = generar_excel(args.archivo, destino, ENCABEZADOS, COLUMNAS_NUMERICAS,
+                                     COLUMNAS_TEXTO, corregir_estructura, args.encoding or 'cp1252')
+            print('Excel generado:', destino)
+            print('Filas:', registro['filas'])
+            print('Incidencias para revisar:', registro['incidencias'])
+            print('Lectura provisional:', registro['lectura_provisional'])
         elif args.corregir_caracteres:
             destino = args.salida or args.archivo.with_name('Lista-Precios_caracteres.txt')
             registro = corregir_caracteres(args.archivo, destino, ENCABEZADOS)
