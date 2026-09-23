@@ -200,7 +200,8 @@ def main():
             destino = args.salida or destino_por_defecto(args.archivo)
             registro = generar_excel(args.archivo, destino, ENCABEZADOS, COLUMNAS_NUMERICAS,
                                      COLUMNAS_TEXTO, corregir_estructura, args.encoding or 'cp1252')
-            print('Excel generado:', destino)
+            print('Excel completo:', destino)
+            print('Excel reducido:', destino.with_name(registro['excel_reducido']))
             print('Filas:', registro['filas'])
             print('Incidencias para revisar:', registro['incidencias'])
             print('Lectura provisional:', registro['lectura_provisional'])
