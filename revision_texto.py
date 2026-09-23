@@ -1,5 +1,6 @@
 """Diagnostico conservador de texto: cuenta y muestra; nunca limpia datos."""
 import hashlib
+from caracteres_contexto import tiene_pendientes
 
 
 def revisar_texto(ruta, encabezados, columnas):
@@ -49,6 +50,7 @@ def revisar_texto(ruta, encabezados, columnas):
                         muestras[columna][categoria].append(linea)
                 if controles or no_ascii:
                     incidencias.append({
+                        'requiere_revision': tiene_pendientes(valor, columna),
                         'linea': linea, 'columna': columna,
                         'codigo_articulo_bytes_hex': campos[indice_codigo].hex(),
                         'valor_original_bytes_hex': valor.hex(),
@@ -63,6 +65,6 @@ def revisar_texto(ruta, encabezados, columnas):
         'alcance': 'Observaciones de texto; no clasifica vacios, numeros o simbolos como errores.',
         'codificacion': 'Sin confirmar. Las vistas son comparaciones, no conversiones aprobadas.',
         'muestras': muestras, 'limite_muestras_por_categoria': 5,
-        'detalle_incidencias': 'Incluye TODOS los campos con controles ASCII o bytes no ASCII.',
+        'detalle_incidencias': 'Incluye TODOS los campos con controles ASCII o bytes no ASCII; requiere_revision distingue los contextos validados.',
         'resumen': resumen, 'incidencias': incidencias,
     }

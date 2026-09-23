@@ -135,3 +135,16 @@ class ProcesoTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.ejecutar()
         self.assertEqual(self.destino.read_bytes(),b'CONSERVAR')
+
+    def test_excel_omite_validos_pero_mantiene_campo_mixto(self):
+        self.campos[7] = b'10.00'
+        self.campos[9] = 'CONEXIÓN CIGÜEÑAL JIC 37ø'.encode('cp1252')
+        self.entrada.write_bytes(self.cabecera+b'|'.join(self.campos))
+        self.assertEqual(self.ejecutar()['incidencias'],0)
+        wb = load_workbook(self.destino)
+        self.addCleanup(wb.close)
+        self.assertEqual(wb['Lista de precios']['I2'].value,'CONEXIÓN CIGÜEÑAL JIC 37°')
+        self.campos[9] += ' REPøFNO'.encode('cp1252')
+        self.entrada.write_bytes(self.cabecera+b'|'.join(self.campos))
+        self.destino = self.root/'mixto.xlsx'
+        self.assertEqual(self.ejecutar()['incidencias'],1)

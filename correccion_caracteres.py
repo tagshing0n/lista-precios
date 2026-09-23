@@ -3,6 +3,7 @@ import hashlib
 import json
 import re
 from limpieza_controles import DESCRIPCIONES
+from caracteres_contexto import corregir_grados, CONTEXTOS
 
 # Bytes originales observados -> palabra aprobada representada en Windows-1252.
 REGLAS = (
@@ -38,6 +39,9 @@ def transformar_palabras(original):
         nuevo, cantidad = patron.subn(destino, nuevo)
         if cantidad:
             aplicadas[nombre] = cantidad
+    nuevo, grados = corregir_grados(nuevo)
+    if grados:
+        aplicadas['grados_contexto'] = grados
     return nuevo, aplicadas
 
 
@@ -64,6 +68,7 @@ def corregir_caracteres(ruta, destino, encabezados):
     resultado = [lineas[0]]
     cambios = []
     totales = {nombre: 0 for nombre, _, _ in REGLAS}
+    totales['grados_contexto'] = 0
     for numero, original in enumerate(lineas[1:], 2):
         terminador = b'\r' if original.endswith(b'\r') else b''
         cuerpo = original[:-1] if terminador else original
@@ -94,7 +99,9 @@ def corregir_caracteres(ruta, destino, encabezados):
         'sustituciones_por_regla': totales,
         'reglas': {nombre: {'origen_hex': origen.hex(), 'destino_hex': nuevo.hex()}
                    for nombre, origen, nuevo in REGLAS},
-        'alcance': 'Solo palabras completas aprobadas en las cuatro descripciones.',
+        'alcance': 'Palabras completas y grados en contextos aprobados, solo en las cuatro descripciones.',
+        'regla_grados_contexto': {'patrones': [p.pattern for p in CONTEXTOS],
+                                'destino_hex': 'b0'},
         'codificacion': 'No se recodifica el archivo; solo bytes exactos aprobados.',
         'cambios': cambios,
     }

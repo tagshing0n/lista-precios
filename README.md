@@ -178,6 +178,10 @@ Se detiene si Excel no puede representar algun valor sin truncar o eliminar cara
 
 ### Incidencias
 
+Los grados se normalizan a ° solo en descripciones: numeros con unidad C/F, o precedidos por CODO, JIC, ANGULO, ASIENTO o TERMOST/TERMOSTATO. Solo se sustituye el simbolo; cantidades, signos y separadores se conservan. Casos sin contexto claro siguen pendientes.
+
+Los contextos validados de acentos (lista explicita de palabras), diametros Ø con medida en mm y grados no se muestran como sospechosos en el Excel CP1252. El diagnostico JSON conserva todos los campos no ASCII con requiere_revision; un campo que mezcla texto valido y dudoso permanece pendiente. Esta clasificacion no elimina ni modifica el texto. Otras codificaciones mantienen todas las observaciones.
+
 Incluye precios cero, valores invalidos, nombres de linea vacios y comparaciones de caracteres no ASCII (no son automaticamente errores).
 La lectura Windows-1252 es provisional y se indica en el libro. Solo aplica las 16 sustituciones aprobadas; no corrige otros simbolos.
 El selector Pendiente/Revisado corresponde a esa copia; las decisiones manuales no se importan en futuras ejecuciones.

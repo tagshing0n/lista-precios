@@ -116,6 +116,8 @@ def exportar_excel(entrada, destino, encabezados, numerico, texto, encoding='cp1
         raw = bytes.fromhex(i['bytes_originales_hex'])
         issues.append((i['linea'], i['columna'], motivo, raw.decode(encoding), ''))
     for i in texto['incidencias']:
+        if encoding.lower() == 'cp1252' and not i.get('requiere_revision', True):
+            continue
         raw = bytes.fromhex(i['valor_original_bytes_hex'])
         issues.append((i['linea'], i['columna'],
                        'Revisar lectura de caracteres no ASCII (no implica error)',
