@@ -203,7 +203,9 @@ def main():
             print('Excel completo:', destino)
             print('Excel reducido:', destino.with_name(registro['excel_reducido']))
             print('Filas:', registro['filas'])
-            print('Incidencias para revisar:', registro['incidencias'])
+            print('Observaciones en Incidencias:', registro['incidencias'])
+            print('Aceptadas:', registro['observaciones_aceptadas'])
+            print('Pendientes:', registro['pendientes'])
             print('Lectura provisional:', registro['lectura_provisional'])
         elif args.corregir_caracteres:
             destino = args.salida or args.archivo.with_name('Lista-Precios_caracteres.txt')

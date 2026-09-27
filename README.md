@@ -182,6 +182,8 @@ Las aceptaciones individuales se leen de un archivo privado junto al origen: Lis
 
 Cada ejecucion copia las aceptaciones utilizadas a su auditoria y cuenta las aplicadas en proceso.json. El diagnostico numerico conserva sus observaciones tecnicas originales; la aceptacion se aplica al generar el Excel. El archivo de decisiones debe conservarse junto al TXT al actualizarlo y queda fuera de Git.
 
+Los casos aceptados siguen visibles en la hoja Incidencias con estado Aceptado y motivo confirmado en origen. La hoja distingue el total de observaciones, aceptadas y pendientes; el filtro Revision permite consultarlas por separado. Una advertencia adicional no aceptada del mismo precio mantiene el caso Pendiente.
+
 Los grados se normalizan a ° solo en descripciones: numeros con unidad C/F, o precedidos por CODO, JIC, ANGULO, ASIENTO o TERMOST/TERMOSTATO. Solo se sustituye el simbolo; cantidades, signos y separadores se conservan. Casos sin contexto claro siguen pendientes.
 
 Los contextos validados de acentos (lista explicita de palabras), diametros Ø con medida en mm y grados no se muestran como sospechosos en el Excel CP1252. El diagnostico JSON conserva todos los campos no ASCII con requiere_revision; un campo que mezcla texto valido y dudoso permanece pendiente. Esta clasificacion no elimina ni modifica el texto. Otras codificaciones mantienen todas las observaciones.

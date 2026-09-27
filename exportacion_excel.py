@@ -114,13 +114,15 @@ def exportar_excel(entrada, destino, encabezados, numerico, texto, encoding='cp1
     if len(rows) != numerico['filas'] or len(rows) > 1048575:
         raise ValueError('Cantidad de filas incompatible con el reporte o con Excel.')
     issues = []
+    aceptadas = set()
     for i in numerico['incidencias']:
         avisos = list(i['avisos'])
         if 'precio_cero_requiere_revision' in avisos and aceptada('precio_cero',rows[i['linea']-2],revisiones):
             avisos.remove('precio_cero_requiere_revision')
             aceptaciones_aplicadas['precio_cero'] += 1
             if not avisos and i['estado']=='valido':
-                continue
+                aceptadas.add((i['linea'],i['columna']))
+            avisos.insert(0,'precio_cero_confirmado_en_origen')
         motivo = ', '.join(avisos) if avisos else 'Valor ' + i['estado']
         raw = bytes.fromhex(i['bytes_originales_hex'])
         issues.append((i['linea'], i['columna'], motivo, raw.decode(encoding), ''))
@@ -135,8 +137,9 @@ def exportar_excel(entrada, destino, encabezados, numerico, texto, encoding='cp1
         if not row[2]:
             if aceptada('nombre_linea_vacio',row,revisiones):
                 aceptaciones_aplicadas['nombre_linea_vacio'] += 1
-            else:
-                issues.append((n, 'Nombre de Linea', 'Nombre de linea vacio: revisar', '', ''))
+                aceptadas.add((n,'Nombre de Linea'))
+            motivo = 'Nombre de linea vacio confirmado en origen' if (n,'Nombre de Linea') in aceptadas else 'Nombre de linea vacio: revisar'
+            issues.append((n, 'Nombre de Linea', motivo, '', ''))
     issues.extend(extra)
     for n,col,motivo,valor,alternativa in issues:
         texto_seguro(str(valor), n, col)
@@ -190,21 +193,22 @@ def exportar_excel(entrada, destino, encabezados, numerico, texto, encoding='cp1
         revision.column_dimensions[get_column_letter(i)].width = ancho
     for n in range(1,5):
         revision.row_dimensions[n].height = 24
-    revision.append([celda(revision,'Incidencias pendientes')])
+    revision.append([celda(revision,'Incidencias y observaciones')])
     revision.append([celda(revision,'Fuente: ' + (fuente or entrada.name))])
     revision.append([celda(revision,f'Lectura {encoding} provisional. Comparar caracteres dudosos; no se aplican nuevas correcciones.')])
-    revision.append([celda(revision,f'Filas: {len(rows)}. Observaciones: {len(issues)}. La revision se regenera en cada ejecucion.')])
+    revision.append([celda(revision,f'Filas: {len(rows)}. Observaciones: {len(issues)}. Aceptadas: {len(aceptadas)}. Pendientes: {len(issues)-len(aceptadas)}.')])
     revision.row_dimensions[5].height = 32
     revision.append([celda(revision,c,encabezado=True) for c in headers])
     for fila,(n,col,motivo,valor,alternativa) in enumerate(issues,6):
         codigo = str(rows[n-2][6])
-        valores = [n,filas_excel[n],codigo,col,motivo,valor,alternativa,'Pendiente']
+        estado = 'Aceptado' if (n,col) in aceptadas else 'Pendiente'
+        valores = [n,filas_excel[n],codigo,col,motivo,valor,alternativa,estado]
         revision.row_dimensions[fila].height = min(400,max(28,*[
             ceil(len(str(valores[i]))/(issue_widths[i]-3))*13+8 for i in (4,5,6)]))
         revision.append([celda(revision,v,envolver=i in (4,5,6)) for i,v in enumerate(valores)])
     if issues:
         tabla(revision,'IncidenciasPrecios',headers,len(issues)+5,5)
-        dv = DataValidation(type='list', formula1='"Pendiente,Revisado"', allow_blank=False)
+        dv = DataValidation(type='list', formula1='"Pendiente,Revisado,Aceptado"', allow_blank=False)
         revision.data_validations.append(dv)
         dv.add(f'H6:H{len(issues)+5}')
     # No formulas de datos; las reglas de formato las calcula Excel al abrirlo.
@@ -218,4 +222,5 @@ def exportar_excel(entrada, destino, encabezados, numerico, texto, encoding='cp1
             destino.unlink(missing_ok=True)
         raise
     return {'filas': len(rows), 'incidencias': len(issues), 'lectura_provisional': encoding,
+            'observaciones_aceptadas':len(aceptadas), 'pendientes':len(issues)-len(aceptadas),
             'aceptaciones_aplicadas':aceptaciones_aplicadas}
