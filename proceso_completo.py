@@ -9,10 +9,12 @@ from correccion_caracteres import corregir_caracteres
 from validacion_numerica import validar_numeros
 from revision_texto import revisar_texto
 from exportacion_excel import exportar_excel
+from revisiones_aceptadas import cargar_revisiones
 
 
 def generar_excel(ruta, destino, encabezados, numericas, textos, corregir, encoding='cp1252'):
     ruta, destino = Path(ruta), Path(destino)
+    revisiones, archivo_revisiones = cargar_revisiones(ruta)
     if destino.suffix.lower() != '.xlsx':
         raise ValueError('La salida debe terminar en .xlsx.')
     if destino.exists() or ruta.resolve() == destino.resolve():
@@ -28,6 +30,9 @@ def generar_excel(ruta, destino, encabezados, numericas, textos, corregir, encod
     manifiesto = {'fuente': ruta.name, 'sha256_original': hashlib.sha256(original).hexdigest(),
                   'estado': 'en_proceso', 'lectura_provisional': encoding}
     try:
+        if archivo_revisiones:
+            copia_revisiones = carpeta/'revisiones_aceptadas.json'
+            copia_revisiones.write_text(json.dumps({'version':1,'aceptaciones':{k:sorted(v) for k,v in revisiones.items()}},indent=2),encoding='utf-8')
         copia = carpeta / '00_original.txt'
         copia.write_bytes(original)
         estructura = carpeta / '01_estructura.txt'
@@ -44,13 +49,13 @@ def generar_excel(ruta, destino, encabezados, numericas, textos, corregir, encod
             (carpeta / nombre).write_text(json.dumps(reporte,ensure_ascii=True,indent=2),encoding='utf-8')
         if ruta.read_bytes() != original:
             raise ValueError('La entrada cambio durante el proceso; vuelve a ejecutar.')
-        resumen = exportar_excel(caracteres, destino, encabezados, numeros, texto, encoding, ruta.name)
+        resumen = exportar_excel(caracteres, destino, encabezados, numeros, texto, encoding, ruta.name, revisiones=revisiones)
         manifiesto.update(resumen)
         manifiesto['estado'] = 'generado_con_incidencias' if resumen['incidencias'] else 'generado'
         manifiesto['sha256_excel'] = hashlib.sha256(destino.read_bytes()).hexdigest()
         manifiesto['excel'] = destino.name
         exportar_excel(caracteres, reducido, encabezados, numeros, texto, encoding, ruta.name,
-                       reducida=True)
+                       reducida=True, revisiones=revisiones)
         manifiesto['excel_reducido'] = reducido.name
         manifiesto['sha256_excel_reducido'] = hashlib.sha256(reducido.read_bytes()).hexdigest()
         manifiesto['orden'] = ['Linea ascendente numerica', 'SubLinea ascendente numerica',

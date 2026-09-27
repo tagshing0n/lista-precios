@@ -4,6 +4,8 @@ import io
 import shutil
 import unittest
 import uuid
+import json
+from revisiones_aceptadas import identidad
 from openpyxl import load_workbook
 import listaPrecios
 from proceso_completo import generar_excel
@@ -30,6 +32,25 @@ class ValoresTests(unittest.TestCase):
 
 
 class ProcesoTests(unittest.TestCase):
+    def test_aceptaciones_persistentes_solo_para_casos_revisados(self):
+        self.campos[2] = b''
+        conocidos = [c.decode('cp1252').strip(' ') for c in self.campos]
+        nuevos = self.campos.copy()
+        nuevos[6] = b'NUEVO'
+        self.entrada.write_bytes(self.cabecera+b'|'.join(nuevos)+b'\n'+b'|'.join(self.campos))
+        reglas={k:[identidad(conocidos)] for k in ('precio_cero','nombre_linea_vacio')}
+        self.entrada.with_suffix('.revisiones.json').write_text(json.dumps({'version':1,'aceptaciones':reglas}))
+        resultado=self.ejecutar()
+        self.assertEqual(resultado['aceptaciones_aplicadas'],{'precio_cero':1,'nombre_linea_vacio':1})
+        wb=load_workbook(self.destino)
+        self.addCleanup(wb.close)
+        pendientes=list(wb['Incidencias'].iter_rows(min_row=6,values_only=True))
+        self.assertEqual(len(pendientes),2)
+        self.assertTrue(all(r[2]=='NUEVO' for r in pendientes))
+        self.assertEqual(wb['Lista de precios']['G2'].value,0)
+        self.assertIsNone(wb['Lista de precios']['C2'].value)
+        self.assertEqual(len(wb['Lista de precios'].conditional_formatting),1)
+
     def setUp(self):
         self.work = Path(__file__).resolve().parents[1] / 'work'
         self.root = self.work / ('test_excel_' + uuid.uuid4().hex)

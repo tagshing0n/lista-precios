@@ -13,6 +13,7 @@ from openpyxl.formatting.rule import FormulaRule
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.utils import get_column_letter
 from validacion_numerica import clasificar
+from revisiones_aceptadas import aceptada
 
 NUMEROS = {'Almacen', 'Linea', 'SubLinea', 'Existencia', 'Precio de Lista'}
 DESCRIPCIONES = {'Descripcion 1', 'Descripcion 2', 'Descripcion 3', 'Descripcion Extendida'}
@@ -85,7 +86,9 @@ def clave_orden(row):
 
 
 def exportar_excel(entrada, destino, encabezados, numerico, texto, encoding='cp1252', fuente=None,
-                   reducida=False):
+                   reducida=False, revisiones=None):
+    revisiones = revisiones or {}
+    aceptaciones_aplicadas = {'precio_cero':0, 'nombre_linea_vacio':0}
     if destino.exists() or destino.resolve() == entrada.resolve():
         raise ValueError('El Excel de salida ya existe o coincide con la entrada.')
     # Validacion completa antes de iniciar la escritura del libro.
@@ -112,7 +115,13 @@ def exportar_excel(entrada, destino, encabezados, numerico, texto, encoding='cp1
         raise ValueError('Cantidad de filas incompatible con el reporte o con Excel.')
     issues = []
     for i in numerico['incidencias']:
-        motivo = ', '.join(i['avisos']) if i['avisos'] else 'Valor ' + i['estado']
+        avisos = list(i['avisos'])
+        if 'precio_cero_requiere_revision' in avisos and aceptada('precio_cero',rows[i['linea']-2],revisiones):
+            avisos.remove('precio_cero_requiere_revision')
+            aceptaciones_aplicadas['precio_cero'] += 1
+            if not avisos and i['estado']=='valido':
+                continue
+        motivo = ', '.join(avisos) if avisos else 'Valor ' + i['estado']
         raw = bytes.fromhex(i['bytes_originales_hex'])
         issues.append((i['linea'], i['columna'], motivo, raw.decode(encoding), ''))
     for i in texto['incidencias']:
@@ -124,7 +133,10 @@ def exportar_excel(entrada, destino, encabezados, numerico, texto, encoding='cp1
                        raw.decode(encoding), raw.decode('cp850')))
     for n,row in enumerate(rows,2):
         if not row[2]:
-            issues.append((n, 'Nombre de Linea', 'Nombre de linea vacio: revisar', '', ''))
+            if aceptada('nombre_linea_vacio',row,revisiones):
+                aceptaciones_aplicadas['nombre_linea_vacio'] += 1
+            else:
+                issues.append((n, 'Nombre de Linea', 'Nombre de linea vacio: revisar', '', ''))
     issues.extend(extra)
     for n,col,motivo,valor,alternativa in issues:
         texto_seguro(str(valor), n, col)
@@ -167,8 +179,11 @@ def exportar_excel(entrada, destino, encabezados, numerico, texto, encoding='cp1
     if rows:
         tabla(datos,'ListaPrecios',columnas_salida,len(rows)+1)
         precio = get_column_letter(columnas_salida.index('Precio de Lista') + 1)
-        datos.conditional_formatting.add(f'{precio}2:{precio}{len(rows)+1}', FormulaRule(
-            formula=[f'AND(ISNUMBER({precio}2),{precio}2=0)'], fill=PatternFill('solid',fgColor='FFF2CC')))
+        for origen, valores in enumerate(rows,2):
+            if isinstance(valores[7],(int,float)) and valores[7]==0 and not aceptada('precio_cero',valores,revisiones):
+                fila = filas_excel[origen]
+                datos.conditional_formatting.add(f'{precio}{fila}', FormulaRule(
+                    formula=[f'AND(ISNUMBER({precio}{fila}),{precio}{fila}=0)'], fill=PatternFill('solid',fgColor='FFF2CC')))
     headers = ['Linea TXT','Fila Excel','Codigo de Articulo','Columna','Motivo','Valor mostrado','Vista alternativa CP850','Revision']
     issue_widths = [12,12,24,27,52,72,72,18]
     for i,ancho in enumerate(issue_widths,1):
@@ -202,4 +217,5 @@ def exportar_excel(entrada, destino, encabezados, numerico, texto, encoding='cp1
         if creado:
             destino.unlink(missing_ok=True)
         raise
-    return {'filas': len(rows), 'incidencias': len(issues), 'lectura_provisional': encoding}
+    return {'filas': len(rows), 'incidencias': len(issues), 'lectura_provisional': encoding,
+            'aceptaciones_aplicadas':aceptaciones_aplicadas}

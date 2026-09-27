@@ -178,6 +178,10 @@ Se detiene si Excel no puede representar algun valor sin truncar o eliminar cara
 
 ### Incidencias
 
+Las aceptaciones individuales se leen de un archivo privado junto al origen: Lista-Precios.revisiones.json. Vinculan cada decision al almacen, linea, sublinea y codigo de articulo mediante una huella. Los precios cero y nombres de linea vacios confirmados se conservan, pero no aparecen como pendientes; los ceros aceptados tampoco se resaltan. Casos nuevos u otras advertencias siguen requiriendo revision. Sin este archivo se muestran todas las observaciones habituales. No equivale a autorizar precios cero o nombres vacios de forma general.
+
+Cada ejecucion copia las aceptaciones utilizadas a su auditoria y cuenta las aplicadas en proceso.json. El diagnostico numerico conserva sus observaciones tecnicas originales; la aceptacion se aplica al generar el Excel. El archivo de decisiones debe conservarse junto al TXT al actualizarlo y queda fuera de Git.
+
 Los grados se normalizan a ° solo en descripciones: numeros con unidad C/F, o precedidos por CODO, JIC, ANGULO, ASIENTO o TERMOST/TERMOSTATO. Solo se sustituye el simbolo; cantidades, signos y separadores se conservan. Casos sin contexto claro siguen pendientes.
 
 Los contextos validados de acentos (lista explicita de palabras), diametros Ø con medida en mm y grados no se muestran como sospechosos en el Excel CP1252. El diagnostico JSON conserva todos los campos no ASCII con requiere_revision; un campo que mezcla texto valido y dudoso permanece pendiente. Esta clasificacion no elimina ni modifica el texto. Otras codificaciones mantienen todas las observaciones.
