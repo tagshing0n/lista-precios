@@ -22,7 +22,7 @@ class ComercialTests(unittest.TestCase):
         ws.append(['Almacen',*COLUMNAS,'Codigo Fabricante'])
         for i,cantidad in enumerate((valor,4,-1,0.5)):
             ws.append(['SECRETO-ALMACEN','LINEA','000'+str(i),12.35,'MARCA',
-                       '=TEXTO','DESC 3','DETALLE','PZ','00123456',cantidad,'SECRETO-FABRICANTE'])
+                       '=TEXTO','DESC 2','DESC 3','DETALLE','PZ','00123456',cantidad,'SECRETO-FABRICANTE'])
             ws.cell(i+2,6).data_type='s'
         wb.create_sheet('Incidencias')['A1']='SECRETO-OBSERVACION'
         wb.save(self.source)
@@ -42,13 +42,15 @@ class ComercialTests(unittest.TestCase):
         self.assertEqual(wb.sheetnames,['Lista comercial'])
         ws=wb.active
         self.assertEqual(tuple(c.value for c in ws[5]),COLUMNAS)
-        self.assertEqual([ws.cell(i,10).value for i in range(6,10)],[None,'D','D','D'])
+        self.assertEqual([ws.cell(i,11).value for i in range(6,10)],[None,'D','D','D'])
         self.assertEqual(ws['B6'].value,'0000')
-        self.assertEqual(ws['I6'].value,'00123456')
+        self.assertEqual(ws['J6'].value,'00123456')
         self.assertEqual(ws['E6'].value,'=TEXTO')
         self.assertEqual(ws['E6'].data_type,'s')
+        self.assertEqual(ws['E5'].value,'Descripcion 1')
+        self.assertEqual(ws['F6'].value,'DESC 2')
         self.assertEqual(ws['C6'].value,12.35)
-        self.assertEqual(ws.tables['CatalogoComercial'].ref,'A5:J9')
+        self.assertEqual(ws.tables['CatalogoComercial'].ref,'A5:K9')
         with ZipFile(self.dest) as z:
             self.assertFalse(any('externalLink' in n or 'comments' in n for n in z.namelist()))
             self.assertNotIn(b'SECRETO',b''.join(z.read(n) for n in z.namelist()))

@@ -4,7 +4,7 @@
 
     python presentacion_comercial.py ruta/Lista_Precios_observaciones_reducida.xlsx --salida Lista_Comercial.xlsx
 
-Este modulo genera un libro nuevo para vendedores y clientes sin modificar la limpieza ni el archivo de trabajo. Exporta exclusivamente, en este orden: Nombre de Linea, Codigo de Articulo, Precio de Lista, Marca, Descripcion 2, Descripcion 3, Descripcion Extendida, Unidad de Medida, Codigo SAT y Existencia. Mantiene todas las filas y su orden.
+Este modulo genera un libro nuevo para vendedores y clientes sin modificar la limpieza ni el archivo de trabajo. Exporta exclusivamente, en este orden: Nombre de Linea, Codigo de Articulo, Precio de Lista, Marca, Descripcion 1, Descripcion 2, Descripcion 3, Descripcion Extendida, Unidad de Medida, Codigo SAT y Existencia. Mantiene todas las filas y su orden.
 
 Existencia se transforma en celda vacia si es cero y D si es distinta de cero, incluidos negativos segun la regla aprobada. Una existencia vacia o no numerica detiene la exportacion; no se confunde con agotado. El libro se construye desde cero: no copia Incidencias, auditorias, columnas ocultas, comentarios, vinculos o cantidades internas. Las columnas futuras quedan excluidas salvo autorizacion explicita en COLUMNAS. Los precios cero se conservan como cero.
 

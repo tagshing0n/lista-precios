@@ -12,9 +12,9 @@ import re
 import warnings
 
 COLUMNAS = ('Nombre de Linea','Codigo de Articulo','Precio de Lista','Marca',
-            'Descripcion 2','Descripcion 3','Descripcion Extendida',
+            'Descripcion 1','Descripcion 2','Descripcion 3','Descripcion Extendida',
             'Unidad de Medida','Codigo SAT','Existencia')
-ANCHOS = (24,25,17,24,42,42,72,15,17,14)
+ANCHOS = (24,25,17,24,42,42,42,72,15,17,14)
 NUMERO = re.compile(r'[+-]?(?:[0-9]+|[0-9]{1,3}(?:,[0-9]{3})+)(?:\.[0-9]+)?')
 
 
@@ -77,8 +77,8 @@ def generar_comercial(entrada, salida):
     ws.print_title_rows='1:5'
     ws.print_options.horizontalCentered=True
     ws.oddFooter.center.text='Pagina &P de &N'
-    ws.merged_cells.add('A1:J2')
-    ws.merged_cells.add('A3:J3')
+    ws.merged_cells.add('A1:K2')
+    ws.merged_cells.add('A3:K3')
     for i,width in enumerate(ANCHOS,1):
         ws.column_dimensions[chr(64+i)].width=width
     normal=Font(name='Calibri',size=11,color='243746')
@@ -102,23 +102,23 @@ def generar_comercial(entrada, salida):
     ws.row_dimensions[3].height=27
     ws.row_dimensions[4].height=9
     ws.row_dimensions[5].height=34
-    ws.append([celda('LISTA DE PRECIOS',title,dark)]+[celda(None,fill=dark) for _ in range(9)])
+    ws.append([celda('LISTA DE PRECIOS',title,dark)]+[celda(None,fill=dark) for _ in range(len(COLUMNAS)-1)])
     ws.append([celda(None,fill=dark) for _ in COLUMNAS])
     ws.append([celda('Disponibilidad: D = disponible. Celda vacia = agotado.')])
     ws.append([])
     ws.append([celda(c,bold,teal,center) for c in COLUMNAS])
     for n,row in enumerate(filas,6):
-        altura=max(27,*[ceil(len(str(row[i] or ''))/(ANCHOS[i]-4))*15+9 for i in (0,1,3,4,5,6)])
+        altura=max(27,*[ceil(len(str(row[i] or ''))/(ANCHOS[i]-4))*15+9 for i in (0,1,3,4,5,6,7)])
         ws.row_dimensions[n].height=min(409,altura)
         salida_row=[]
         for i,value in enumerate(row):
-            c=celda(value,green if i==9 else normal,stripe if n%2==0 else None,
-                    right if i==2 else center if i in (7,8,9) else left)
+            c=celda(value,green if i==10 else normal,stripe if n%2==0 else None,
+                    right if i==2 else center if i in (8,9,10) else left)
             if i==2 and isinstance(value,(int,float)):c.number_format='#,##0.00'
             salida_row.append(c)
         ws.append(salida_row)
     if filas:
-        ref=f'A5:J{len(filas)+5}'
+        ref=f'A5:K{len(filas)+5}'
         t=Table(displayName='CatalogoComercial',ref=ref,
                 tableColumns=[TableColumn(id=i,name=c) for i,c in enumerate(COLUMNAS,1)])
         t.tableStyleInfo=TableStyleInfo(name='TableStyleMedium2',showRowStripes=False)
@@ -126,7 +126,7 @@ def generar_comercial(entrada, salida):
             warnings.filterwarnings('ignore',message='In write-only mode you must add table columns manually')
             ws.add_table(t)
         ws.auto_filter.ref=ref
-    ws.print_area=f'A1:J{len(filas)+5}'
+    ws.print_area=f'A1:K{len(filas)+5}'
     creado=False
     try:
         with salida.open('xb') as f:
