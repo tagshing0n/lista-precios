@@ -3,6 +3,13 @@ from pathlib import Path
 from collections import Counter
 import argparse
 import unicodedata
+import json
+from validacion_numerica import validar_numeros
+from revision_texto import revisar_texto
+from limpieza_controles import limpiar_controles
+from limpieza_espacios import limpiar_espacios
+from correccion_caracteres import corregir_caracteres
+from estructura import elegir_correccion, firma_contexto
 
 ENCABEZADOS = (
     'Almacen', 'Linea', 'Nombre de Linea', 'SubLinea',
@@ -72,7 +79,7 @@ def inspeccionar(ruta, encoding=None):
     print('No se modifico el archivo ni se eliminaron filas o campos.')
 
 
-CORRECCIONES_APROBADAS = {'dac4d9850eb9746b5d5d9c0a16567244d3d870b5ba2244f2fc27f2501f72ef2d': 10, 'f7bf7356dad76e78e55b35e29a0588469cba716a3a4bfc29e5e35d4ce37fdbb8': 11, '55f95fa1b2e4338f68d9c854a9f533599137011e75ff857eff8dc4a5fcf002f1': 10}
+CORRECCIONES_APROBADAS = {'172f918f6fe6cd2e1ce03e04dc5903259bc5dafd59c63de19ad082042886c18a': 10, '9b84902256c5bc53b5ccc23491b6638e8ed54f8f9efd4636e9348d511fde89f7': 11, '80298221c7aeaf267186236ff7399e0e388949f85245438196b35699ef724e07': 10}
 
 
 def corregir_estructura(ruta, destino):
@@ -96,9 +103,10 @@ def corregir_estructura(ruta, destino):
             resultado.append(original)
             continue
         huella = hashlib.sha256(cuerpo).hexdigest()
-        posicion = CORRECCIONES_APROBADAS.get(huella)
-        if len(campos) != 17 or posicion is None or campos[posicion].strip(b' '):
-            pendientes.append(numero)
+        posicion, regla = elegir_correccion(campos, CORRECCIONES_APROBADAS)
+        if posicion is None:
+            pendientes.append({'linea': numero, 'cantidad_campos': len(campos),
+                               'motivo': regla, 'fila_original_hex': cuerpo.hex()})
             continue
         eliminado = campos[posicion]
         nuevos = campos[:posicion] + campos[posicion + 1:]
@@ -107,17 +115,26 @@ def corregir_estructura(ruta, destino):
         resultado.append(b'|'.join(nuevos) + terminador)
         cambios.append({
             'linea': numero,
-            'codigo_articulo': campos[6].strip(b' ').decode('ascii'),
+            'codigo_articulo': campos[6].strip(b' ').decode('latin1'),
             'campo_eliminado_1_based': posicion + 1,
+            'regla': regla,
             'bytes_eliminados_hex': eliminado.hex(),
             'sha256_fila_original': huella,
         })
     if pendientes:
-        raise ValueError('Filas sin correccion aprobada; no se genero salida: ' + str(pendientes[:20]))
+        incidencias = destino.with_suffix('.incidencias.json')
+        if incidencias.resolve() == ruta.resolve():
+            raise ValueError('El reporte no puede reemplazar la entrada.')
+        with incidencias.open('x', encoding='utf-8') as archivo:
+            json.dump({'sha256_entrada': hashlib.sha256(contenido).hexdigest(),
+                       'incidencias': pendientes}, archivo, ensure_ascii=True, indent=2)
+        raise ValueError('Filas sin correccion aprobada; no se genero TXT. Reporte: ' + str(incidencias))
     salida = b''.join(resultado)
     if len(resultado) != len(lineas):
         raise ValueError('Cambio inesperado en el numero de filas.')
     reporte = destino.with_suffix('.auditoria.json')
+    if destino.resolve() == reporte.resolve():
+        raise ValueError('La salida y la auditoria deben ser diferentes.')
     if destino.resolve() == ruta.resolve() or reporte.resolve() == ruta.resolve():
         raise ValueError('La salida no puede reemplazar el archivo original.')
     if destino.exists() or reporte.exists():
@@ -129,7 +146,7 @@ def corregir_estructura(ruta, destino):
         'sha256_salida': hashlib.sha256(salida).hexdigest(),
         'filas_datos': len(lineas) - 1,
         'correcciones': cambios,
-        'politica': 'Solo filas exactas previamente aprobadas. Sin conversion de tipos.',
+        'politica': 'Distribucion unica segun esquema o contexto previamente aprobado. Sin conversion de tipos.',
     }
     with destino.open('xb') as archivo:
         archivo.write(salida)
@@ -146,11 +163,78 @@ def main():
     parser.add_argument('archivo', nargs='?', type=Path,
                         default=Path(__file__).with_name('Lista-Precios.txt'))
     parser.add_argument('--encoding', help='Codificacion confirmada, por ejemplo cp1252.')
-    parser.add_argument('--corregir', action='store_true', help='Aplicar solo las correcciones aprobadas.')
+    modos = parser.add_mutually_exclusive_group()
+    modos.add_argument('--generar-excel', action='store_true', help='Ejecutar todas las etapas y generar los Excel completo y reducido, ordenados.')
+    modos.add_argument('--corregir-caracteres', action='store_true', help='Aplicar las cuatro sustituciones aprobadas.')
+    modos.add_argument('--limpiar-espacios', action='store_true', help='Recortar solo espacios ASCII externos.')
+    modos.add_argument('--limpiar-controles', action='store_true', help='Aplicar reglas aprobadas a descripciones.')
+    modos.add_argument('--revisar-texto', action='store_true', help='Revisar texto sin modificarlo.')
+    modos.add_argument('--validar-numeros', action='store_true', help='Validar sin modificar los valores.')
+    parser.add_argument('--reporte', type=Path, help='Nuevo archivo JSON para la validacion.')
+    modos.add_argument('--corregir', action='store_true', help='Aplicar solo las correcciones aprobadas.')
     parser.add_argument('--salida', type=Path, help='Destino del TXT corregido.')
     args = parser.parse_args()
+    if args.reporte and not (args.validar_numeros or args.revisar_texto):
+        parser.error('--reporte requiere --validar-numeros o --revisar-texto')
+    if args.salida and not (args.corregir or args.limpiar_controles or args.limpiar_espacios or args.corregir_caracteres or args.generar_excel):
+        parser.error('--salida requiere un modo de correccion, limpieza o --generar-excel')
     try:
-        if args.corregir:
+        if args.validar_numeros or args.revisar_texto:
+            if args.validar_numeros:
+                reporte = validar_numeros(args.archivo, ENCABEZADOS, COLUMNAS_NUMERICAS)
+            else:
+                reporte = revisar_texto(args.archivo, ENCABEZADOS, COLUMNAS_TEXTO)
+            if args.reporte:
+                if args.reporte.resolve() == args.archivo.resolve():
+                    raise ValueError('El reporte no puede reemplazar la entrada.')
+                with args.reporte.open('x', encoding='utf-8') as salida:
+                    json.dump(reporte, salida, ensure_ascii=True, indent=2)
+            print(json.dumps(reporte['resumen'], ensure_ascii=True, indent=2))
+            print('Filas validadas:', reporte['filas'])
+            print('Incidencias:', len(reporte['incidencias']))
+            print('Archivo original sin modificar.')
+            if args.validar_numeros and any(c['vacios'] or c['invalidos'] for c in reporte['resumen'].values()):
+                parser.exit(2, 'Hay valores vacios o invalidos; revisar el reporte.\n')
+        elif args.generar_excel:
+            from proceso_completo import generar_excel, destino_por_defecto
+            destino = args.salida or destino_por_defecto(args.archivo)
+            registro = generar_excel(args.archivo, destino, ENCABEZADOS, COLUMNAS_NUMERICAS,
+                                     COLUMNAS_TEXTO, corregir_estructura, args.encoding or 'cp1252')
+            print('Excel completo:', destino)
+            print('Excel reducido:', destino.with_name(registro['excel_reducido']))
+            print('Filas:', registro['filas'])
+            print('Observaciones en Incidencias:', registro['incidencias'])
+            print('Aceptadas:', registro['observaciones_aceptadas'])
+            print('Pendientes:', registro['pendientes'])
+            print('Lectura provisional:', registro['lectura_provisional'])
+        elif args.corregir_caracteres:
+            destino = args.salida or args.archivo.with_name('Lista-Precios_caracteres.txt')
+            registro = corregir_caracteres(args.archivo, destino, ENCABEZADOS)
+            print('Filas conservadas:', registro['filas_datos'])
+            print('Campos modificados:', registro['campos_modificados'])
+            print('Sustituciones:', registro['sustituciones_por_regla'])
+            print('Salida:', destino)
+            print('Auditoria:', destino.with_suffix('.auditoria.json'))
+        elif args.limpiar_espacios:
+            destino = args.salida or args.archivo.with_name('Lista-Precios_espacios.txt')
+            registro = limpiar_espacios(args.archivo, destino, ENCABEZADOS)
+            print('Filas conservadas:', registro['filas_datos'])
+            print('Campos de datos recortados:', registro['campos_datos_modificados'])
+            print('Encabezados recortados:', registro['encabezados_modificados'])
+            print('Espacios ASCII retirados:', registro['espacios_ascii_retirados'])
+            print('Salida:', destino)
+            print('Auditoria:', destino.with_suffix('.auditoria.json'))
+        elif args.limpiar_controles:
+            destino = args.salida or args.archivo.with_name('Lista-Precios_controles.txt')
+            registro = limpiar_controles(args.archivo, destino, ENCABEZADOS)
+            print('Filas conservadas:', registro['filas_datos'])
+            print('Campos modificados:', registro['campos_modificados'])
+            print('Tabuladores sustituidos:', registro['tabuladores_sustituidos'])
+            print('Nulos retirados:', registro['nulos_retirados'])
+            print('Casos pendientes:', len(registro['pendientes']))
+            print('Salida:', destino)
+            print('Auditoria:', destino.with_suffix('.auditoria.json'))
+        elif args.corregir:
             destino = args.salida or args.archivo.with_name('Lista-Precios_estructura.txt')
             corregir_estructura(args.archivo, destino)
         else:
