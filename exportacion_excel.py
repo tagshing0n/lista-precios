@@ -14,6 +14,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.utils import get_column_letter
 from validacion_numerica import clasificar
 from revisiones_aceptadas import aceptada
+from reglas_distribucion import motivos_exclusion, disponibilidad, MARCADOR_REDUCIDO
 
 NUMEROS = {'Almacen', 'Linea', 'SubLinea', 'Existencia', 'Precio de Lista'}
 DESCRIPCIONES = {'Descripcion 1', 'Descripcion 2', 'Descripcion 3', 'Descripcion Extendida'}
@@ -152,10 +153,22 @@ def exportar_excel(entrada, destino, encabezados, numerico, texto, encoding='cp1
     columnas_salida = [c for c in encabezados if c not in excluidas] + ['Existencia']
     indices_salida = [encabezados.index(c) for c in columnas_salida]
     ordenadas = sorted(enumerate(rows, 2), key=lambda item: clave_orden(item[1]))
+    exclusiones = []
+    if reducida:
+        conservadas = []
+        for linea, row in ordenadas:
+            motivos = motivos_exclusion(row[1], row[7])
+            if motivos:
+                exclusiones.append({'linea_txt': linea, 'codigo': row[6], 'motivos': motivos})
+            else:
+                disponibilidad(row[5])  # Validar antes de iniciar la escritura.
+                conservadas.append((linea, row))
+        ordenadas = conservadas
     filas_excel = {linea: fila for fila, (linea, _) in enumerate(ordenadas, 2)}
     wb = Workbook(write_only=True)
     wb.properties.title = 'Lista de precios'
     wb.properties.creator = 'listaPrecios'
+    if reducida: wb.properties.description = MARCADOR_REDUCIDO
     datos = wb.create_sheet('Lista de precios')
     revision = wb.create_sheet('Incidencias')
     datos.sheet_view.showGridLines = False
@@ -172,6 +185,7 @@ def exportar_excel(entrada, destino, encabezados, numerico, texto, encoding='cp1
     datos.append([celda(datos,c,encabezado=True) for c in columnas_salida])
     for n,(_, original_row) in enumerate(ordenadas,2):
         row = [original_row[i] for i in indices_salida]
+        if reducida: row[-1] = disponibilidad(original_row[5])
         altura = max([24] + [ceil(len(str(row[i])) / (widths[i] - 3)) * 13 + 8 for i,c in enumerate(columnas_salida) if c in DESCRIPCIONES])
         datos.row_dimensions[n].height = min(altura, 400)
         celdas = []
@@ -179,11 +193,11 @@ def exportar_excel(entrada, destino, encabezados, numerico, texto, encoding='cp1
             formato = '#,##0.000' if columnas_salida[i] == 'Existencia' else '#,##0.00' if columnas_salida[i] == 'Precio de Lista' else '0'
             celdas.append(celda(datos,v,formato,envolver=columnas_salida[i] in DESCRIPCIONES))
         datos.append(celdas)
-    if rows:
-        tabla(datos,'ListaPrecios',columnas_salida,len(rows)+1)
+    if ordenadas:
+        tabla(datos,'ListaPrecios',columnas_salida,len(ordenadas)+1)
         precio = get_column_letter(columnas_salida.index('Precio de Lista') + 1)
         for origen, valores in enumerate(rows,2):
-            if isinstance(valores[7],(int,float)) and valores[7]==0 and not aceptada('precio_cero',valores,revisiones):
+            if origen in filas_excel and isinstance(valores[7],(int,float)) and valores[7]==0 and not aceptada('precio_cero',valores,revisiones):
                 fila = filas_excel[origen]
                 datos.conditional_formatting.add(f'{precio}{fila}', FormulaRule(
                     formula=[f'AND(ISNUMBER({precio}{fila}),{precio}{fila}=0)'], fill=PatternFill('solid',fgColor='FFF2CC')))
@@ -196,13 +210,13 @@ def exportar_excel(entrada, destino, encabezados, numerico, texto, encoding='cp1
     revision.append([celda(revision,'Incidencias y observaciones')])
     revision.append([celda(revision,'Fuente: ' + (fuente or entrada.name))])
     revision.append([celda(revision,f'Lectura {encoding} provisional. Comparar caracteres dudosos; no se aplican nuevas correcciones.')])
-    revision.append([celda(revision,f'Filas: {len(rows)}. Observaciones: {len(issues)}. Aceptadas: {len(aceptadas)}. Pendientes: {len(issues)-len(aceptadas)}.')])
+    revision.append([celda(revision,f'Filas publicadas: {len(ordenadas)}. Excluidas: {len(exclusiones)}. Observaciones: {len(issues)}. Aceptadas: {len(aceptadas)}. Pendientes: {len(issues)-len(aceptadas)}. Fila Excel vacia: registro excluido.')])
     revision.row_dimensions[5].height = 32
     revision.append([celda(revision,c,encabezado=True) for c in headers])
     for fila,(n,col,motivo,valor,alternativa) in enumerate(issues,6):
         codigo = str(rows[n-2][6])
         estado = 'Aceptado' if (n,col) in aceptadas else 'Pendiente'
-        valores = [n,filas_excel[n],codigo,col,motivo,valor,alternativa,estado]
+        valores = [n,filas_excel.get(n),codigo,col,motivo,valor,alternativa,estado]
         revision.row_dimensions[fila].height = min(400,max(28,*[
             ceil(len(str(valores[i]))/(issue_widths[i]-3))*13+8 for i in (4,5,6)]))
         revision.append([celda(revision,v,envolver=i in (4,5,6)) for i,v in enumerate(valores)])
@@ -221,6 +235,7 @@ def exportar_excel(entrada, destino, encabezados, numerico, texto, encoding='cp1
         if creado:
             destino.unlink(missing_ok=True)
         raise
-    return {'filas': len(rows), 'incidencias': len(issues), 'lectura_provisional': encoding,
+    return {'filas': len(ordenadas), 'filas_fuente': len(rows), 'exclusiones': exclusiones,
+            'incidencias': len(issues), 'lectura_provisional': encoding,
             'observaciones_aceptadas':len(aceptadas), 'pendientes':len(issues)-len(aceptadas),
             'aceptaciones_aplicadas':aceptaciones_aplicadas}

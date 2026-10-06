@@ -54,8 +54,11 @@ def generar_excel(ruta, destino, encabezados, numericas, textos, corregir, encod
         manifiesto['estado'] = 'generado_con_incidencias' if resumen['incidencias'] else 'generado'
         manifiesto['sha256_excel'] = hashlib.sha256(destino.read_bytes()).hexdigest()
         manifiesto['excel'] = destino.name
-        exportar_excel(caracteres, reducido, encabezados, numeros, texto, encoding, ruta.name,
+        resumen_reducido = exportar_excel(caracteres, reducido, encabezados, numeros, texto, encoding, ruta.name,
                        reducida=True, revisiones=revisiones)
+        manifiesto['filas_reducido'] = resumen_reducido['filas']
+        manifiesto['excluidas_reducido'] = len(resumen_reducido['exclusiones'])
+        (carpeta/'exclusiones_reducido.json').write_text(json.dumps(resumen_reducido['exclusiones'],ensure_ascii=True,indent=2),encoding='utf-8')
         manifiesto['excel_reducido'] = reducido.name
         manifiesto['sha256_excel_reducido'] = hashlib.sha256(reducido.read_bytes()).hexdigest()
         manifiesto['orden'] = ['Linea ascendente numerica', 'SubLinea ascendente numerica',

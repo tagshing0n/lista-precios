@@ -114,6 +114,7 @@ class ProcesoTests(unittest.TestCase):
         for linea,sublinea,codigo in [('10','1','A'),('2','10','A'),('2','2','B'),
                                       ('02','2','a'),('2','2','A'),('2','2','001')]:
             campos = self.campos.copy()
+            campos[7] = b'10.00'
             campos[1],campos[3],campos[6] = linea.encode(),sublinea.encode(),codigo.encode()
             originales.append(campos)
         self.entrada.write_bytes(self.cabecera+b'\n'.join(b'|'.join(r) for r in originales))
@@ -142,6 +143,32 @@ class ProcesoTests(unittest.TestCase):
         self.assertEqual(reducido.read_bytes(),b'CONSERVAR')
         self.assertFalse(self.destino.exists())
         self.assertFalse((self.root/'salida_auditoria').exists())
+
+    def test_reducido_filtra_sin_perder_respaldo_y_conserva_referencias(self):
+        originales=[]
+        casos=[('85','20','4'),('104','20','4'),('2','0','4'),
+               ('2','0.5','4'),('2','1.00','4'),('2','1.01','0'),
+               ('2','20','-2'),('2','0.51','0.001')]
+        for i,(linea,precio,stock) in enumerate(casos):
+            campos=self.campos.copy()
+            campos[1],campos[7],campos[5]=linea.encode(),precio.encode(),stock.encode()
+            campos[6]=f'00{i}'.encode()
+            campos[9]=b'AMBIGUO\xf8'
+            originales.append(campos)
+        self.entrada.write_bytes(self.cabecera+b'\n'.join(b'|'.join(r) for r in originales))
+        resultado=self.ejecutar()
+        self.assertEqual(resultado['filas'],8)
+        self.assertEqual(resultado['filas_reducido'],3)
+        self.assertEqual(resultado['excluidas_reducido'],5)
+        wb=load_workbook(self.root/'salida_reducida.xlsx');self.addCleanup(wb.close)
+        ws=wb['Lista de precios']
+        self.assertEqual([ws.cell(n,5).value for n in range(2,5)],['005','006','007'])
+        self.assertEqual([ws.cell(n,14).value for n in range(2,5)],[None,'D','D'])
+        self.assertEqual(ws.tables['ListaPrecios'].ref,'A1:N4')
+        for issue in wb['Incidencias'].iter_rows(min_row=6,values_only=True):
+            if issue[2] in ('005','006','007'):
+                self.assertEqual(ws.cell(issue[1],5).value,issue[2])
+            else:self.assertIsNone(issue[1])
 
     def test_fallo_estructural_no_genera_excel(self):
         campos = self.campos[:10] + [b''] + self.campos[10:]

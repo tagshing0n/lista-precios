@@ -203,3 +203,30 @@ La lectura Windows-1252 es provisional y se indica en el libro. Solo aplica las 
 El selector Pendiente/Revisado corresponde a esa copia; las decisiones manuales no se importan en futuras ejecuciones.
 Si hay ambiguedad estructural no genera Excel; la carpeta de auditoria conserva las incidencias y el estado fallido.
 Salidas, originales y reportes estan excluidos de Git.
+# Primera versión final para distribución
+
+El Excel completo conserva todas las filas y las cantidades originales. El reducido
+excluye las líneas 85 y 104 y los precios exactamente 0, 0.50 y 1.00; otros precios
+(por ejemplo 0.51 o 1.01) se conservan. Existencia se muestra como `D` para cualquier
+cantidad distinta de cero (también negativa) y vacío para cero. Un valor inválido
+impide generar la salida reducida: nunca se interpreta como agotado ni se descarta
+silenciosamente.
+
+Las incidencias se mantienen en el reducido como información interna. Para una fila
+excluida, `Fila Excel` queda vacía; `Linea TXT` y el código siguen identificando el
+registro. La carpeta de auditoría incluye `exclusiones_reducido.json` y el manifiesto
+registra las cantidades del completo y del reducido por separado.
+
+Para distribuir a clientes y vendedores, generar un libro comercial nuevo:
+
+```powershell
+python presentacion_comercial.py "Lista_Precios_reducida.xlsx" --salida "Lista_Precios_Final_v1.xlsx" --logo "logo_empresa.jpeg" --edicion "Primera edición | 05/10/2026"
+```
+
+El logo es un archivo local autorizado por la empresa; no se incluye en el repositorio.
+La salida comercial contiene solo las 11 columnas autorizadas, incluida Descripcion 1,
+sin Almacen, Linea, SubLinea, cantidades internas ni Incidencias. Reconoce la
+disponibilidad del nuevo reducido mediante su marcador de formato y sigue admitiendo
+archivos anteriores con cantidades numéricas. Cuando hay columna Linea, aplica también
+los filtros aprobados antes de presentar los artículos. Conserva el orden de entrada.
+Cada salida requiere un nombre nuevo para no sobrescribir versiones previas.

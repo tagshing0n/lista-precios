@@ -10,6 +10,9 @@ from openpyxl.worksheet.table import Table, TableColumn, TableStyleInfo
 from openpyxl.worksheet.worksheet import Worksheet
 import re
 import warnings
+from io import BytesIO
+from openpyxl.drawing.image import Image
+from reglas_distribucion import MARCADOR_REDUCIDO, motivos_exclusion
 
 COLUMNAS = ('Nombre de Linea','Codigo de Articulo','Precio de Lista','Marca',
             'Descripcion 1','Descripcion 2','Descripcion 3','Descripcion Extendida',
@@ -31,10 +34,11 @@ def disponibilidad(valor):
     return '' if numero == 0 else 'D'
 
 
-def generar_comercial(entrada, salida):
+def generar_comercial(entrada, salida, logo=None, edicion='Lista general de precios'):
     entrada,salida=Path(entrada),Path(salida)
     if salida.suffix.lower()!='.xlsx' or salida.exists() or entrada.resolve()==salida.resolve():
         raise ValueError('Elige un archivo .xlsx nuevo para la salida comercial.')
+    imagen = Image(BytesIO(Path(logo).read_bytes())) if logo else None
     origen=load_workbook(entrada,read_only=True,data_only=False,keep_links=False)
     filas=[]
     try:
@@ -45,7 +49,13 @@ def generar_comercial(entrada, salida):
         if any(cabecera.count(c)!=1 for c in COLUMNAS):
             raise ValueError('Falta una columna autorizada o hay encabezados duplicados.')
         indices=[cabecera.index(c) for c in COLUMNAS]
+        es_disponibilidad = origen.properties.description == MARCADOR_REDUCIDO
         for n,row in enumerate(iterator,2):
+            if 'Linea' in cabecera:
+                campos_filtro = [row[cabecera.index(c)] for c in ('Linea','Precio de Lista')]
+                if any(c.data_type in ('f','e') for c in campos_filtro):
+                    raise ValueError(f'Fila {n}: filtro con formula o error.')
+                if motivos_exclusion(*(c.value for c in campos_filtro)): continue
             valores=[]
             for nombre,i in zip(COLUMNAS,indices):
                 cell=row[i]
@@ -53,8 +63,13 @@ def generar_comercial(entrada, salida):
                     raise ValueError(f'Fila {n}, {nombre}: formula o error requiere revision previa.')
                 valor=cell.value
                 if nombre=='Existencia':
-                    try:valor=disponibilidad(valor)
-                    except ValueError as error:raise ValueError(f'Fila {n}: {error}') from error
+                    if es_disponibilidad:
+                        if valor not in (None,'','D'):
+                            raise ValueError(f'Fila {n}: disponibilidad invalida en reducido.')
+                        valor=valor or ''
+                    else:
+                        try:valor=disponibilidad(valor)
+                        except ValueError as error:raise ValueError(f'Fila {n}: {error}') from error
                 if nombre in ('Codigo de Articulo','Codigo SAT') and valor is not None and not isinstance(valor,str):
                     raise ValueError(f'Fila {n}, {nombre}: el identificador debe venir como texto.')
                 valores.append(valor)
@@ -77,8 +92,14 @@ def generar_comercial(entrada, salida):
     ws.print_title_rows='1:5'
     ws.print_options.horizontalCentered=True
     ws.oddFooter.center.text='Pagina &P de &N'
-    ws.merged_cells.add('A1:K2')
-    ws.merged_cells.add('A3:K3')
+    ws.merged_cells.add('A1:B3')
+    ws.merged_cells.add('C1:K2')
+    ws.merged_cells.add('C3:K3')
+    ws.merged_cells.add('A4:K4')
+    if imagen:
+        factor=min(280/imagen.width,135/imagen.height)
+        imagen.width*=factor;imagen.height*=factor
+        ws.add_image(imagen,'A1')
     for i,width in enumerate(ANCHOS,1):
         ws.column_dimensions[chr(64+i)].width=width
     normal=Font(name='Calibri',size=11,color='243746')
@@ -87,9 +108,9 @@ def generar_comercial(entrada, salida):
     left=Alignment(vertical='center',wrap_text=True)
     center=Alignment(horizontal='center',vertical='center',wrap_text=True)
     right=Alignment(horizontal='right',vertical='center')
-    dark=PatternFill('solid',fgColor='17364A')
-    teal=PatternFill('solid',fgColor='176B75')
-    stripe=PatternFill('solid',fgColor='F1F6F8')
+    dark=PatternFill('solid',fgColor='12264B')
+    teal=PatternFill('solid',fgColor='193C63')
+    stripe=PatternFill('solid',fgColor='F2F5F9')
     green=Font(name='Calibri',size=11,bold=True,color='176B55')
     def celda(value,font=normal,fill=None,alignment=left):
         c=WriteOnlyCell(ws,value=value)
@@ -97,15 +118,15 @@ def generar_comercial(entrada, salida):
         c.font=font;c.alignment=alignment
         if fill:c.fill=fill
         return c
-    ws.row_dimensions[1].height=30
-    ws.row_dimensions[2].height=18
-    ws.row_dimensions[3].height=27
-    ws.row_dimensions[4].height=9
+    ws.row_dimensions[1].height=44
+    ws.row_dimensions[2].height=40
+    ws.row_dimensions[3].height=26
+    ws.row_dimensions[4].height=26
     ws.row_dimensions[5].height=34
-    ws.append([celda('LISTA DE PRECIOS',title,dark)]+[celda(None,fill=dark) for _ in range(len(COLUMNAS)-1)])
-    ws.append([celda(None,fill=dark) for _ in COLUMNAS])
-    ws.append([celda('Disponibilidad: D = disponible. Celda vacia = agotado.')])
-    ws.append([])
+    ws.append([celda(None),celda(None),celda('ADELAR | LISTA DE PRECIOS',title,dark)]+[celda(None,fill=dark) for _ in range(8)])
+    ws.append([celda(None),celda(None)]+[celda(None,fill=dark) for _ in range(9)])
+    ws.append([celda(None),celda(None),celda(edicion,bold,PatternFill('solid',fgColor='A62436'))]+[celda(None,fill=PatternFill('solid',fgColor='A62436')) for _ in range(8)])
+    ws.append([celda('Disponibilidad: D = disponible | Celda vacia = agotado.  Utiliza los filtros para buscar articulos.')])
     ws.append([celda(c,bold,teal,center) for c in COLUMNAS])
     for n,row in enumerate(filas,6):
         altura=max(27,*[ceil(len(str(row[i] or ''))/(ANCHOS[i]-4))*15+9 for i in (0,1,3,4,5,6,7)])
@@ -143,9 +164,11 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('entrada',type=Path)
     parser.add_argument('--salida',required=True,type=Path)
+    parser.add_argument('--logo',type=Path,help='Imagen del logo autorizada por la empresa.')
+    parser.add_argument('--edicion',default='Lista general de precios')
     args=parser.parse_args()
     try:
-        resumen=generar_comercial(args.entrada,args.salida)
+        resumen=generar_comercial(args.entrada,args.salida,args.logo,args.edicion)
     except (ValueError,OSError) as error:
         parser.exit(1,f'Error: {error}\n')
     print('Lista comercial:',args.salida)

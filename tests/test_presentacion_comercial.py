@@ -3,6 +3,7 @@ import unittest,uuid,shutil,hashlib
 from zipfile import ZipFile
 from openpyxl import Workbook,load_workbook
 from presentacion_comercial import COLUMNAS,generar_comercial,disponibilidad
+from reglas_distribucion import MARCADOR_REDUCIDO
 
 class ComercialTests(unittest.TestCase):
     def setUp(self):
@@ -62,3 +63,21 @@ class ComercialTests(unittest.TestCase):
         self.dest.write_bytes(b'CONSERVAR')
         with self.assertRaises(ValueError):generar_comercial(self.source,self.dest)
         self.assertEqual(self.dest.read_bytes(),b'CONSERVAR')
+
+    def test_reducido_disponibilidad_logo_y_filtros(self):
+        from PIL import Image
+        self.fuente()
+        wb=load_workbook(self.source)
+        wb.properties.description=MARCADOR_REDUCIDO
+        ws=wb.active
+        ws.cell(1,14,'Linea')
+        for n,(linea,precio,stock) in enumerate([(2,12,'D'),(2,12,None),(85,12,'D'),(2,1,'D')],2):
+            ws.cell(n,14,linea);ws.cell(n,4,precio)
+            ws.cell(n,12).value=stock
+        wb.save(self.source);wb.close()
+        logo=self.root/'logo.png';Image.new('RGB',(200,100),'white').save(logo)
+        result=generar_comercial(self.source,self.dest,logo,'Primera edicion')
+        self.assertEqual(result,{'articulos':2,'disponibles':1,'agotados':1})
+        wb=load_workbook(self.dest);self.addCleanup(wb.close)
+        self.assertEqual(len(wb.active._images),1)
+        self.assertEqual(wb.active['C3'].value,'Primera edicion')
