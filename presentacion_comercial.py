@@ -6,6 +6,7 @@ from math import ceil
 from openpyxl import Workbook, load_workbook
 from openpyxl.cell import WriteOnlyCell
 from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl.styles.numbers import BUILTIN_FORMATS
 from openpyxl.worksheet.table import Table, TableColumn, TableStyleInfo
 from openpyxl.worksheet.worksheet import Worksheet
 import re
@@ -18,6 +19,11 @@ COLUMNAS = ('Nombre de Linea','Codigo de Articulo','Precio de Lista','Marca',
             'Descripcion 1','Descripcion 2','Descripcion 3','Descripcion Extendida',
             'Unidad de Medida','Codigo SAT','Existencia')
 ANCHOS = (24,25,17,24,42,42,42,72,15,17,14)
+FUENTE_COMERCIAL = 'Open Sans Light'
+FORMATO_CONTABILIDAD = BUILTIN_FORMATS[44]
+LEYENDAS = ('Disponibilidad: D = disponible | Celda vacia = agotado.  Utiliza los filtros para buscar articulos.\n'
+            'Lista de precios estrictamente informativa y de referencia. El precio final se confirmará al momento de generar su cotización formal o pedido\n'
+            'LOS PRECIOS DE LISTA NO INCLUYEN IVA')
 NUMERO = re.compile(r'[+-]?(?:[0-9]+|[0-9]{1,3}(?:,[0-9]{3})+)(?:\.[0-9]+)?')
 
 
@@ -79,6 +85,7 @@ def generar_comercial(entrada, salida, logo=None, edicion='Lista general de prec
     if len(filas)>1048571:
         raise ValueError('Demasiadas filas para el formato comercial.')
     wb=Workbook(write_only=True)
+    wb._fonts[0] = Font(name=FUENTE_COMERCIAL,size=11)
     wb.properties.creator='listaPrecios'
     wb.properties.title='Lista de precios comercial'
     ws=wb.create_sheet('Lista comercial')
@@ -102,16 +109,16 @@ def generar_comercial(entrada, salida, logo=None, edicion='Lista general de prec
         ws.add_image(imagen,'A1')
     for i,width in enumerate(ANCHOS,1):
         ws.column_dimensions[chr(64+i)].width=width
-    normal=Font(name='Calibri',size=11,color='243746')
-    bold=Font(name='Calibri',size=11,bold=True,color='FFFFFF')
-    title=Font(name='Calibri',size=22,bold=True,color='FFFFFF')
+    normal=Font(name=FUENTE_COMERCIAL,size=11,color='243746')
+    bold=Font(name=FUENTE_COMERCIAL,size=11,bold=True,color='FFFFFF')
+    title=Font(name=FUENTE_COMERCIAL,size=22,bold=True,color='FFFFFF')
     left=Alignment(vertical='center',wrap_text=True)
     center=Alignment(horizontal='center',vertical='center',wrap_text=True)
     right=Alignment(horizontal='right',vertical='center')
     dark=PatternFill('solid',fgColor='12264B')
     teal=PatternFill('solid',fgColor='193C63')
     stripe=PatternFill('solid',fgColor='F2F5F9')
-    green=Font(name='Calibri',size=11,bold=True,color='176B55')
+    green=Font(name=FUENTE_COMERCIAL,size=11,bold=True,color='176B55')
     def celda(value,font=normal,fill=None,alignment=left):
         c=WriteOnlyCell(ws,value=value)
         if isinstance(value,str):c.data_type='s';c.number_format='@'
@@ -121,12 +128,12 @@ def generar_comercial(entrada, salida, logo=None, edicion='Lista general de prec
     ws.row_dimensions[1].height=44
     ws.row_dimensions[2].height=40
     ws.row_dimensions[3].height=26
-    ws.row_dimensions[4].height=26
+    ws.row_dimensions[4].height=66
     ws.row_dimensions[5].height=34
     ws.append([celda(None),celda(None),celda('ADELAR | LISTA DE PRECIOS',title,dark)]+[celda(None,fill=dark) for _ in range(8)])
     ws.append([celda(None),celda(None)]+[celda(None,fill=dark) for _ in range(9)])
     ws.append([celda(None),celda(None),celda(edicion,bold,PatternFill('solid',fgColor='A62436'))]+[celda(None,fill=PatternFill('solid',fgColor='A62436')) for _ in range(8)])
-    ws.append([celda('Disponibilidad: D = disponible | Celda vacia = agotado.  Utiliza los filtros para buscar articulos.')])
+    ws.append([celda(LEYENDAS)])
     ws.append([celda(c,bold,teal,center) for c in COLUMNAS])
     for n,row in enumerate(filas,6):
         altura=max(27,*[ceil(len(str(row[i] or ''))/(ANCHOS[i]-4))*15+9 for i in (0,1,3,4,5,6,7)])
@@ -135,7 +142,7 @@ def generar_comercial(entrada, salida, logo=None, edicion='Lista general de prec
         for i,value in enumerate(row):
             c=celda(value,green if i==10 else normal,stripe if n%2==0 else None,
                     right if i==2 else center if i in (8,9,10) else left)
-            if i==2 and isinstance(value,(int,float)):c.number_format='#,##0.00'
+            if i==2 and isinstance(value,(int,float)):c.number_format=FORMATO_CONTABILIDAD
             salida_row.append(c)
         ws.append(salida_row)
     if filas:
