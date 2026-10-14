@@ -4,9 +4,11 @@ from datetime import datetime
 import argparse
 import json
 import traceback
+from almacenes import ALMACENES, obtener_presentacion, seleccionar_almacen
 
 
-def ejecutar(base, ahora=None):
+def ejecutar(base, ahora=None, almacen='adelar'):
+    presentacion = obtener_presentacion(almacen)
     base = Path(base).resolve()
     datos = base / 'datos'
     fuente = datos / 'Lista-Precios.txt'
@@ -23,7 +25,8 @@ def ejecutar(base, ahora=None):
     ahora = ahora or datetime.now()
     carpeta = base / 'outputs' / ahora.strftime('%Y%m%d_%H%M%S_%f')
     carpeta.mkdir(parents=True, exist_ok=False)
-    estado = {'estado': 'en_proceso'}
+    estado = {'estado': 'en_proceso', 'almacen': almacen,
+              'nombre_almacen': presentacion.nombre}
     try:
         completo = carpeta / 'Lista_Precios.xlsx'
         print('Limpiando TXT y generando completo y reducido...', flush=True)
@@ -33,7 +36,8 @@ def ejecutar(base, ahora=None):
         print('Generando lista comercial con logo...', flush=True)
         comercial = generar_comercial(carpeta / 'Lista_Precios_reducida.xlsx',
                                       carpeta / 'Lista_Precios_Final.xlsx', logo,
-                                      'Edicion | ' + ahora.strftime('%d/%m/%Y'))
+                                      'Edicion | ' + ahora.strftime('%d/%m/%Y'),
+                                      almacen=almacen)
         estado.update(estado='completado', completo=resumen['filas'],
                       reducido=resumen['filas_reducido'], comercial=comercial)
         print(f'Listas terminadas: {carpeta}', flush=True)
@@ -50,9 +54,19 @@ def ejecutar(base, ahora=None):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--carpeta', type=Path, default=Path(__file__).resolve().parent)
+    parser.add_argument('--almacen', choices=ALMACENES,
+                        help='Omite el menu y utiliza el almacen indicado.')
     args = parser.parse_args()
     try:
-        ejecutar(args.carpeta)
+        almacen = args.almacen or seleccionar_almacen()
+        if almacen is None:
+            print('Generacion cancelada.')
+            return 0
+        print(f'Almacen: {ALMACENES[almacen].nombre}', flush=True)
+        ejecutar(args.carpeta, almacen=almacen)
+    except (EOFError, KeyboardInterrupt):
+        print('\nGeneracion cancelada.')
+        return 1
     except Exception as error:
         print(f'No se completaron las listas: {error}')
         return 1

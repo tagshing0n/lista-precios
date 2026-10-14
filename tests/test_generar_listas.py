@@ -4,6 +4,9 @@ import uuid
 import shutil
 from contextlib import contextmanager
 import unittest
+from unittest.mock import patch
+import json
+from almacenes import seleccionar_almacen
 from PIL import Image
 from openpyxl import load_workbook
 import listaPrecios
@@ -34,7 +37,13 @@ class EjecutorTests(unittest.TestCase):
             original=('|'.join(listaPrecios.ENCABEZADOS)+'\n'+'|'.join(fila)).encode()
             (datos/'Lista-Precios.txt').write_bytes(original)
             primera=ejecutar(base,datetime(2026,10,6,10))
-            segunda=ejecutar(base,datetime(2026,10,6,11))
+            segunda=ejecutar(base,datetime(2026,10,6,11),almacen='egarama-queretaro')
+            estado=json.loads((segunda/'ejecucion.json').read_text(encoding='utf-8'))
+            self.assertEqual(estado['almacen'],'egarama-queretaro')
+            otro=load_workbook(segunda/'Lista_Precios_Final.xlsx')
+            try:
+                self.assertEqual(otro.active['C1'].value,'EGARAMA QUERÉTARO | LISTA DE PRECIOS')
+            finally:otro.close()
             self.assertNotEqual(primera,segunda)
             with self.assertRaises(FileExistsError): ejecutar(base,datetime(2026,10,6,10))
             self.assertEqual((datos/'Lista-Precios.txt').read_bytes(),original)
@@ -46,5 +55,11 @@ class EjecutorTests(unittest.TestCase):
                 self.assertEqual(wb.active['B6'].value,'00001')
                 self.assertEqual(wb.active['J6'].value,'01010101')
                 self.assertEqual(wb.active['C6'].font.name,'Open Sans Light')
-                self.assertIn('NO INCLUYEN IVA',wb.active['A4'].value)
+                self.assertIn('Los precios de lista no incluyen IVA',wb.active['A4'].value)
             finally:wb.close()
+
+    def test_menu_reintenta_y_permite_salir(self):
+        with patch('builtins.input',side_effect=['', '4', '2']):
+            self.assertEqual(seleccionar_almacen(),'egarama-mexico')
+        with patch('builtins.input',return_value='0'):
+            self.assertIsNone(seleccionar_almacen())

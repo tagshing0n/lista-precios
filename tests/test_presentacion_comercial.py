@@ -6,6 +6,29 @@ from presentacion_comercial import COLUMNAS,generar_comercial,disponibilidad
 from reglas_distribucion import MARCADOR_REDUCIDO
 
 class ComercialTests(unittest.TestCase):
+    def test_almacenes_conservan_datos_y_aplican_colores(self):
+        self.fuente()
+        datos=None
+        for clave,nombre,titulo,encabezado,edicion in (
+            ('adelar','ADELAR','12264B','193C63','A62436'),
+            ('egarama-mexico','EGARAMA MÉXICO','008000','008000','A62436'),
+            ('egarama-queretaro','EGARAMA QUERÉTARO','ED2100','ED2100','12264B'),
+        ):
+            destino=self.root/(clave+'.xlsx')
+            generar_comercial(self.source,destino,almacen=clave)
+            wb=load_workbook(destino)
+            try:
+                ws=wb.active
+                self.assertEqual(ws['C1'].value,nombre+' | LISTA DE PRECIOS')
+                for celda,color in (('C1',titulo),('A5',encabezado),('C3',edicion)):
+                    self.assertEqual(ws[celda].fill.fgColor.rgb[-6:],color)
+                self.assertEqual(ws['A4'].value,'Disponibilidad: D = disponible | Celda vacia = agotado. Los precios de lista no incluyen IVA')
+                actuales=list(ws.iter_rows(min_row=5,values_only=True))
+                if datos is None:datos=actuales
+                self.assertEqual(actuales,datos)
+                self.assertIsNone(ws.tables['CatalogoComercial'].tableStyleInfo.name)
+            finally:wb.close()
+
     def setUp(self):
         self.work=Path(__file__).resolve().parents[1]/'work'
         self.root=self.work/('test_comercial_'+uuid.uuid4().hex)

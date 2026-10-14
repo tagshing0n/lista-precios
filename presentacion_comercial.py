@@ -14,6 +14,7 @@ import warnings
 from io import BytesIO
 from openpyxl.drawing.image import Image
 from reglas_distribucion import MARCADOR_REDUCIDO, motivos_exclusion
+from almacenes import ALMACENES, obtener_presentacion
 
 COLUMNAS = ('Nombre de Linea','Codigo de Articulo','Precio de Lista','Marca',
             'Descripcion 1','Descripcion 2','Descripcion 3','Descripcion Extendida',
@@ -21,9 +22,8 @@ COLUMNAS = ('Nombre de Linea','Codigo de Articulo','Precio de Lista','Marca',
 ANCHOS = (24,25,17,24,42,42,42,72,15,17,14)
 FUENTE_COMERCIAL = 'Open Sans Light'
 FORMATO_CONTABILIDAD = BUILTIN_FORMATS[44]
-LEYENDAS = ('Disponibilidad: D = disponible | Celda vacia = agotado.  Utiliza los filtros para buscar articulos.\n'
-            'Lista de precios estrictamente informativa y de referencia. El precio final se confirmará al momento de generar su cotización formal o pedido\n'
-            'LOS PRECIOS DE LISTA NO INCLUYEN IVA')
+LEYENDAS = ('Disponibilidad: D = disponible | Celda vacia = agotado. '
+            'Los precios de lista no incluyen IVA')
 NUMERO = re.compile(r'[+-]?(?:[0-9]+|[0-9]{1,3}(?:,[0-9]{3})+)(?:\.[0-9]+)?')
 
 
@@ -40,7 +40,9 @@ def disponibilidad(valor):
     return '' if numero == 0 else 'D'
 
 
-def generar_comercial(entrada, salida, logo=None, edicion='Lista general de precios'):
+def generar_comercial(entrada, salida, logo=None, edicion='Lista general de precios',
+                      almacen='adelar'):
+    presentacion = obtener_presentacion(almacen)
     entrada,salida=Path(entrada),Path(salida)
     if salida.suffix.lower()!='.xlsx' or salida.exists() or entrada.resolve()==salida.resolve():
         raise ValueError('Elige un archivo .xlsx nuevo para la salida comercial.')
@@ -115,8 +117,9 @@ def generar_comercial(entrada, salida, logo=None, edicion='Lista general de prec
     left=Alignment(vertical='center',wrap_text=True)
     center=Alignment(horizontal='center',vertical='center',wrap_text=True)
     right=Alignment(horizontal='right',vertical='center')
-    dark=PatternFill('solid',fgColor='12264B')
-    teal=PatternFill('solid',fgColor='193C63')
+    dark=PatternFill('solid',fgColor=presentacion.titulo)
+    teal=PatternFill('solid',fgColor=presentacion.encabezados)
+    edicion_fill=PatternFill('solid',fgColor=presentacion.edicion)
     stripe=PatternFill('solid',fgColor='F2F5F9')
     green=Font(name=FUENTE_COMERCIAL,size=11,bold=True,color='176B55')
     def celda(value,font=normal,fill=None,alignment=left):
@@ -128,11 +131,11 @@ def generar_comercial(entrada, salida, logo=None, edicion='Lista general de prec
     ws.row_dimensions[1].height=44
     ws.row_dimensions[2].height=40
     ws.row_dimensions[3].height=26
-    ws.row_dimensions[4].height=66
+    ws.row_dimensions[4].height=30
     ws.row_dimensions[5].height=34
-    ws.append([celda(None),celda(None),celda('ADELAR | LISTA DE PRECIOS',title,dark)]+[celda(None,fill=dark) for _ in range(8)])
+    ws.append([celda(None),celda(None),celda(presentacion.nombre+' | LISTA DE PRECIOS',title,dark)]+[celda(None,fill=dark) for _ in range(8)])
     ws.append([celda(None),celda(None)]+[celda(None,fill=dark) for _ in range(9)])
-    ws.append([celda(None),celda(None),celda(edicion,bold,PatternFill('solid',fgColor='A62436'))]+[celda(None,fill=PatternFill('solid',fgColor='A62436')) for _ in range(8)])
+    ws.append([celda(None),celda(None),celda(edicion,bold,edicion_fill)]+[celda(None,fill=edicion_fill) for _ in range(8)])
     ws.append([celda(LEYENDAS)])
     ws.append([celda(c,bold,teal,center) for c in COLUMNAS])
     for n,row in enumerate(filas,6):
@@ -149,7 +152,7 @@ def generar_comercial(entrada, salida, logo=None, edicion='Lista general de prec
         ref=f'A5:K{len(filas)+5}'
         t=Table(displayName='CatalogoComercial',ref=ref,
                 tableColumns=[TableColumn(id=i,name=c) for i,c in enumerate(COLUMNAS,1)])
-        t.tableStyleInfo=TableStyleInfo(name='TableStyleMedium2',showRowStripes=False)
+        t.tableStyleInfo=TableStyleInfo(name=None,showRowStripes=False)
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore',message='In write-only mode you must add table columns manually')
             ws.add_table(t)
@@ -173,9 +176,10 @@ def main():
     parser.add_argument('--salida',required=True,type=Path)
     parser.add_argument('--logo',type=Path,help='Imagen del logo autorizada por la empresa.')
     parser.add_argument('--edicion',default='Lista general de precios')
+    parser.add_argument('--almacen', choices=ALMACENES, default='adelar')
     args=parser.parse_args()
     try:
-        resumen=generar_comercial(args.entrada,args.salida,args.logo,args.edicion)
+        resumen=generar_comercial(args.entrada,args.salida,args.logo,args.edicion,args.almacen)
     except (ValueError,OSError) as error:
         parser.exit(1,f'Error: {error}\n')
     print('Lista comercial:',args.salida)

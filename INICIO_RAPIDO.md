@@ -7,7 +7,9 @@
    - `Lista-Precios.txt` actualizado.
    - `logo_empresa.jpeg`.
    - `Lista-Precios.revisiones.json`, si tienes las aceptaciones anteriores.
-4. Abre **Generar_listas.cmd**. Espera el mensaje de finalizacion; puede tardar
+4. Abre **Generar_listas.cmd** y selecciona **1. ADELAR**, **2. EGARAMA MÉXICO**
+   o **3. EGARAMA QUERÉTARO**. La opcion **0** permite salir sin generar archivos.
+   Espera el mensaje de finalizacion; puede tardar
    varios minutos. La ventana permanece abierta para consultar el resultado.
 5. Abre la nueva carpeta con fecha y hora dentro de `outputs`.
 
@@ -20,6 +22,20 @@ no distribuyas una ejecucion cuyo estado no sea `completado`.
 Para actualizar, reemplaza solamente el TXT en `datos` y ejecuta de nuevo
 **Generar_listas.cmd**. Cada ejecucion usa una carpeta nueva y no sobrescribe las
 listas anteriores. La fecha de edicion es la fecha de generacion del equipo.
+
+La seleccion cambia el nombre y los colores de la lista comercial; no filtra
+articulos por almacen ni modifica la limpieza. Coloca previamente el TXT del
+almacen correspondiente en `datos/Lista-Precios.txt`. Se conserva el logo de
+`datos/logo_empresa.jpeg`. El almacen elegido queda registrado en `ejecucion.json`.
+
+ADELAR mantiene sus colores actuales. EGARAMA MÉXICO usa verde `#008000` en
+titulo y encabezados. EGARAMA QUERÉTARO usa rojo `#ED2100` y la franja de edicion
+azul `#12264B`. Las tres versiones muestran solamente la leyenda:
+"Disponibilidad: D = disponible | Celda vacia = agotado. Los precios de lista no incluyen IVA".
+
+Para ejecuciones automatizadas se puede omitir el menu con
+`python generar_listas.py --almacen adelar` (tambien `egarama-mexico` o
+`egarama-queretaro`).
 
 No necesitas Excel ni Codex para generar los libros. Instala **Open Sans Light**
 en el equipo donde los visualizaras para conservar la tipografia.
