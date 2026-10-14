@@ -23,19 +23,23 @@ def ejecutar(base, ahora=None, almacen='adelar'):
     from proceso_completo import generar_excel
     from presentacion_comercial import generar_comercial
     ahora = ahora or datetime.now()
+    sufijo = presentacion.nombre.replace(' ', '_') + '_' + ahora.strftime('%Y-%m-%d')
     carpeta = base / 'outputs' / ahora.strftime('%Y%m%d_%H%M%S_%f')
     carpeta.mkdir(parents=True, exist_ok=False)
     estado = {'estado': 'en_proceso', 'almacen': almacen,
               'nombre_almacen': presentacion.nombre}
     try:
-        completo = carpeta / 'Lista_Precios.xlsx'
+        completo = carpeta / f'Lista_Precios_{sufijo}.xlsx'
+        reducido = carpeta / f'Lista_Precios_reducida_{sufijo}.xlsx'
+        final = carpeta / f'Lista_Precios_Final_{sufijo}.xlsx'
+        estado['archivos'] = {'completo': completo.name, 'reducido': reducido.name,
+                              'comercial': final.name}
         print('Limpiando TXT y generando completo y reducido...', flush=True)
         resumen = generar_excel(fuente, completo, listaPrecios.ENCABEZADOS,
                                 listaPrecios.COLUMNAS_NUMERICAS, listaPrecios.COLUMNAS_TEXTO,
-                                listaPrecios.corregir_estructura)
+                                listaPrecios.corregir_estructura, destino_reducido=reducido)
         print('Generando lista comercial con logo...', flush=True)
-        comercial = generar_comercial(carpeta / 'Lista_Precios_reducida.xlsx',
-                                      carpeta / 'Lista_Precios_Final.xlsx', logo,
+        comercial = generar_comercial(reducido, final, logo,
                                       'Edicion | ' + ahora.strftime('%d/%m/%Y'),
                                       almacen=almacen)
         estado.update(estado='completado', completo=resumen['filas'],

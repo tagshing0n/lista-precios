@@ -40,16 +40,20 @@ class EjecutorTests(unittest.TestCase):
             segunda=ejecutar(base,datetime(2026,10,6,11),almacen='egarama-queretaro')
             estado=json.loads((segunda/'ejecucion.json').read_text(encoding='utf-8'))
             self.assertEqual(estado['almacen'],'egarama-queretaro')
-            otro=load_workbook(segunda/'Lista_Precios_Final.xlsx')
+            otro=load_workbook(segunda/'Lista_Precios_Final_EGARAMA_QUERÉTARO_2026-10-06.xlsx')
             try:
                 self.assertEqual(otro.active['C1'].value,'EGARAMA QUERÉTARO | LISTA DE PRECIOS')
             finally:otro.close()
             self.assertNotEqual(primera,segunda)
             with self.assertRaises(FileExistsError): ejecutar(base,datetime(2026,10,6,10))
             self.assertEqual((datos/'Lista-Precios.txt').read_bytes(),original)
-            for nombre in ('Lista_Precios.xlsx','Lista_Precios_reducida.xlsx','Lista_Precios_Final.xlsx'):
+            for nombre in ('Lista_Precios_ADELAR_2026-10-06.xlsx','Lista_Precios_reducida_ADELAR_2026-10-06.xlsx','Lista_Precios_Final_ADELAR_2026-10-06.xlsx'):
                 self.assertTrue((primera/nombre).is_file())
-            wb=load_workbook(primera/'Lista_Precios_Final.xlsx')
+            manifiesto=json.loads((primera/'Lista_Precios_ADELAR_2026-10-06_auditoria'/'proceso.json').read_text(encoding='utf-8'))
+            self.assertEqual(manifiesto['excel_reducido'],'Lista_Precios_reducida_ADELAR_2026-10-06.xlsx')
+            for nombre in estado['archivos'].values():
+                self.assertTrue((segunda/nombre).is_file())
+            wb=load_workbook(primera/'Lista_Precios_Final_ADELAR_2026-10-06.xlsx')
             try:
                 self.assertEqual(wb.active['K6'].value,'D')
                 self.assertEqual(wb.active['B6'].value,'00001')

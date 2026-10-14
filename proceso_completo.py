@@ -12,14 +12,18 @@ from exportacion_excel import exportar_excel
 from revisiones_aceptadas import cargar_revisiones
 
 
-def generar_excel(ruta, destino, encabezados, numericas, textos, corregir, encoding='cp1252'):
+def generar_excel(ruta, destino, encabezados, numericas, textos, corregir, encoding='cp1252',
+                  *, destino_reducido=None):
     ruta, destino = Path(ruta), Path(destino)
     revisiones, archivo_revisiones = cargar_revisiones(ruta)
     if destino.suffix.lower() != '.xlsx':
         raise ValueError('La salida debe terminar en .xlsx.')
     if destino.exists() or ruta.resolve() == destino.resolve():
         raise ValueError('El destino existe o coincide con la entrada.')
-    reducido = destino.with_name(destino.stem + '_reducida.xlsx')
+    reducido = (Path(destino_reducido) if destino_reducido is not None
+                else destino.with_name(destino.stem + '_reducida.xlsx'))
+    if reducido.suffix.lower() != '.xlsx' or reducido.resolve() == destino.resolve():
+        raise ValueError('El destino reducido debe ser un .xlsx distinto del completo.')
     if reducido.exists() or ruta.resolve() == reducido.resolve():
         raise ValueError('El destino reducido existe o coincide con la entrada.')
     carpeta = destino.with_name(destino.stem + '_auditoria')

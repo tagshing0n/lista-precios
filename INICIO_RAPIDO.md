@@ -13,9 +13,12 @@
    varios minutos. La ventana permanece abierta para consultar el resultado.
 5. Abre la nueva carpeta con fecha y hora dentro de `outputs`.
 
-Se generan `Lista_Precios.xlsx` (respaldo completo),
-`Lista_Precios_reducida.xlsx` (uso interno, con incidencias) y
-`Lista_Precios_Final.xlsx` (para distribuir). La auditoria y `ejecucion.json`
+Se generan `Lista_Precios_{ALMACEN}_{AAAA-MM-DD}.xlsx` (respaldo completo),
+`Lista_Precios_reducida_{ALMACEN}_{AAAA-MM-DD}.xlsx` (uso interno, con incidencias) y
+`Lista_Precios_Final_{ALMACEN}_{AAAA-MM-DD}.xlsx` (para distribuir).
+Por ejemplo: `Lista_Precios_Final_ADELAR_2026-10-14.xlsx`.
+Los otros almacenes se identifican como `EGARAMA_MÉXICO` y `EGARAMA_QUERÉTARO`.
+La fecha corresponde al dia de generacion del equipo. La auditoria y `ejecucion.json`
 permiten comprobar el resultado. Un fallo conserva sus archivos para diagnostico;
 no distribuyas una ejecucion cuyo estado no sea `completado`.
 
