@@ -32,7 +32,12 @@ def texto_seguro(valor, linea, columna):
 
 
 def valor_excel(columna, raw, encoding, linea):
-    texto = texto_seguro(raw.decode(encoding, errors='strict'), linea, columna)
+    try:
+        decodificado = raw.decode(encoding, errors='strict')
+    except UnicodeDecodeError as error:
+        raise ValueError(f'Linea TXT {linea}, columna {columna}: byte 0x{raw[error.start]:02X} '
+                         f'no interpretable con {encoding}. Revisar el contexto; no se elimina ni reemplaza el dato.') from error
+    texto = texto_seguro(decodificado, linea, columna)
     if columna not in NUMEROS or not raw:
         return texto, None
     estado, numero, _ = clasificar(columna, raw)

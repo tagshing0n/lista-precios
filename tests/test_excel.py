@@ -13,6 +13,10 @@ from exportacion_excel import valor_excel, texto_seguro
 
 
 class ValoresTests(unittest.TestCase):
+    def test_byte_desconocido_informa_fila_y_columna(self):
+        with self.assertRaisesRegex(ValueError, 'Linea TXT 123, columna Marca: byte 0x9D'):
+            valor_excel('Marca',b'ABC\x9d','cp1252',123)
+
     def test_identificadores_y_numeros(self):
         self.assertEqual(valor_excel('Codigo SAT',b'00123456','cp1252',2)[0],'00123456')
         self.assertEqual(valor_excel('Precio de Lista',b'1,234.50','cp1252',2)[0],1234.5)

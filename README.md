@@ -205,6 +205,18 @@ Si hay ambiguedad estructural no genera Excel; la carpeta de auditoria conserva 
 Salidas, originales y reportes estan excluidos de Git.
 # Primera versión final para distribución
 
+## Exportaciones con caracteres mezclados
+
+Algunos TXT mezclan bytes compatibles con CP850 y CP1252. No se debe cambiar
+globalmente a CP850: dañaría palabras que ya están correctas en CP1252.
+La limpieza reconoce, únicamente en descripciones, `DI\x90SEL` como `DIÉSEL`
+(palabra completa) y el byte `9D` antes de una medida numérica en `mm` como `Ø`.
+Conserva la medida, todos los demás bytes y el original; registra las sustituciones
+y sus bytes antes/después en `04_caracteres.auditoria.json`. Las codificaciones
+no se adivinan automáticamente por archivo. Un byte no interpretable fuera de
+esos contextos detiene la exportación indicando línea y columna para revisión.
+
+
 El Excel completo conserva todas las filas y las cantidades originales. El reducido
 excluye las líneas 85 y 104 y los precios exactamente 0, 0.50 y 1.00; otros precios
 (por ejemplo 0.51 o 1.01) se conservan. Existencia se muestra como `D` para cualquier

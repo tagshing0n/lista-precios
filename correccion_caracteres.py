@@ -23,6 +23,7 @@ REGLAS = (
     ('una', b'U\xa5A', b'U\xd1A'),
     ('arana', b'ARA\xa5A', b'ARA\xd1A'),
     ('malibu', b'MALIB\xe9', b'MALIB\xda'),
+    ('diesel_oem', b'DI\x90SEL', b'DI\xc9SEL'),
 )
 LIMITES = rb'A-Za-z0-9_\x80-\xff'
 PATRONES = tuple(
@@ -30,6 +31,7 @@ PATRONES = tuple(
                         + rb'(?![' + LIMITES + rb'])'), destino)
     for nombre, origen, destino in REGLAS
 )
+DIAMETRO_OEM = re.compile(rb'(?<![A-Za-z0-9_\x80-\xff])\x9d(?=[0-9]+(?:[.,][0-9]+)?[ ]*mm(?![A-Za-z0-9_\x80-\xff]))')
 
 
 def transformar_palabras(original):
@@ -42,6 +44,9 @@ def transformar_palabras(original):
     nuevo, grados = corregir_grados(nuevo)
     if grados:
         aplicadas['grados_contexto'] = grados
+    nuevo, diametros = DIAMETRO_OEM.subn(b'\xd8', nuevo)
+    if diametros:
+        aplicadas['diametro_oem_mm'] = diametros
     return nuevo, aplicadas
 
 
@@ -69,6 +74,7 @@ def corregir_caracteres(ruta, destino, encabezados):
     cambios = []
     totales = {nombre: 0 for nombre, _, _ in REGLAS}
     totales['grados_contexto'] = 0
+    totales['diametro_oem_mm'] = 0
     for numero, original in enumerate(lineas[1:], 2):
         terminador = b'\r' if original.endswith(b'\r') else b''
         cuerpo = original[:-1] if terminador else original
@@ -99,7 +105,8 @@ def corregir_caracteres(ruta, destino, encabezados):
         'sustituciones_por_regla': totales,
         'reglas': {nombre: {'origen_hex': origen.hex(), 'destino_hex': nuevo.hex()}
                    for nombre, origen, nuevo in REGLAS},
-        'alcance': 'Palabras completas y grados en contextos aprobados, solo en las cuatro descripciones.',
+        'alcance': 'Palabras completas, grados y diametros antes de medidas en mm; solo en las cuatro descripciones.',
+        'regla_diametro_oem_mm': {'patron': DIAMETRO_OEM.pattern.decode('ascii',errors='backslashreplace'), 'origen_hex':'9d', 'destino_hex':'d8'},
         'regla_grados_contexto': {'patrones': [p.pattern for p in CONTEXTOS],
                                 'destino_hex': 'b0'},
         'codificacion': 'No se recodifica el archivo; solo bytes exactos aprobados.',

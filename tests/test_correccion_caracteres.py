@@ -6,6 +6,16 @@ from correccion_caracteres import corregir_caracteres, transformar_palabras
 
 
 class PalabrasTests(unittest.TestCase):
+    def test_oem_en_contextos_claros_preserva_cp1252_y_ambiguos(self):
+        original=b'DI\x90SEL DI\x90SEL DISCO \x9d308mm \x9d340.5 mm PI\xd1ON DI\xc9SEL'
+        esperado=b'DI\xc9SEL DI\xc9SEL DISCO \xd8308mm \xd8340.5 mm PI\xd1ON DI\xc9SEL'
+        nuevo,cambios=transformar_palabras(original)
+        self.assertEqual(nuevo,esperado)
+        self.assertEqual(cambios,{'diesel_oem':2,'diametro_oem_mm':2})
+        self.assertEqual(transformar_palabras(nuevo),(nuevo,{}))
+        for valor in (b'\x9d',b'ABC\x9d308mm',b'\x9d308',b'\x9d308mmX',b'XDI\x90SEL',b'DI\x90SEL_1',b'\x90'):
+            self.assertEqual(transformar_palabras(valor),(valor,{}))
+
     def test_nuevas_palabras_y_abreviaturas_pendientes(self):
         origen = 'CIGUE¥AL CIGšE¥AL TEFLàN CAMIàN A¥OS BRASILE¥O DISE¥O MU¥ON ANTIEMPA¥ANTE U¥A ARA¥A MALIBé'.encode('cp1252')
         esperado = 'CIGÜEÑAL CIGÜEÑAL TEFLÓN CAMIÓN AÑOS BRASILEÑO DISEÑO MUÑÓN ANTIEMPAÑANTE UÑA ARAÑA MALIBÚ'.encode('cp1252')
